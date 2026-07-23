@@ -5,7 +5,7 @@ use windows::Win32::Security::Cryptography::{
     CertEnumCertificatesInStore, CertFindCertificateInStore,
     CertOpenStore, CERT_CONTEXT, CERT_FIND_SHA1_HASH,
     CERT_OPEN_STORE_FLAGS, CERT_QUERY_ENCODING_TYPE, CERT_STORE_ADD_REPLACE_EXISTING,
-    CERT_STORE_OPEN_EXISTING_FLAG, CERT_STORE_PROV_SYSTEM_W, CERT_STORE_READONLY_FLAG,
+    CERT_STORE_OPEN_EXISTING_FLAG, CERT_STORE_PROV_SYSTEM_REGISTRY_W, CERT_STORE_READONLY_FLAG,
     CERT_SYSTEM_STORE_CURRENT_USER, CERT_SYSTEM_STORE_LOCAL_MACHINE, CRYPT_INTEGER_BLOB,
     HCERTSTORE, HCRYPTPROV_LEGACY, X509_ASN_ENCODING,
 };
@@ -44,9 +44,14 @@ fn open(store: SystemStore, readonly: bool) -> Result<OpenStore> {
         flags |= CERT_STORE_READONLY_FLAG.0;
     }
 
+    // SYSTEM_REGISTRY (not SYSTEM): target the location's own physical registry
+    // store. The plain SYSTEM provider opens a *collection* view — under
+    // CurrentUser it includes the LocalMachine members, so a user-level remove
+    // could reach through and delete machine certificates. The registry
+    // provider reads and writes exactly one hive.
     let handle = unsafe {
         CertOpenStore(
-            CERT_STORE_PROV_SYSTEM_W,
+            CERT_STORE_PROV_SYSTEM_REGISTRY_W,
             CERT_QUERY_ENCODING_TYPE(0),
             HCRYPTPROV_LEGACY::default(),
             CERT_OPEN_STORE_FLAGS(flags),
@@ -119,5 +124,9 @@ impl TrustStore for WindowsStore {
         unsafe { CertDeleteCertificateFromStore(found) }
             .map_err(|e| Error::Store(format!("CertDeleteCertificateFromStore: {e}")))?;
         Ok(true)
+    }
+
+    fn probe_write(&self, store: SystemStore) -> Result<()> {
+        open(store, false).map(|_| ())
     }
 }

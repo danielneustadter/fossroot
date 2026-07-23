@@ -146,6 +146,17 @@ fn status(
 
     print_verification(&bundle);
     println!();
+    // Effective trust: a cert works if either the user or machine store has it.
+    let effective = user
+        .entries
+        .iter()
+        .zip(machine.entries.iter())
+        .filter(|(u, m)| {
+            u.status == CertStatus::Installed || m.status == CertStatus::Installed
+        })
+        .count();
+    let usable_total = user.installed + user.missing;
+    println!("Effective trust: {effective}/{usable_total} DoD CAs usable on this machine");
     for (name, report) in [("Current User ", &user), ("Local Machine", &machine)] {
         let usable = report.installed + report.missing;
         println!(
@@ -206,6 +217,24 @@ fn status(
     Ok(())
 }
 
+fn probe_write_or_explain(location: Location) -> Result<(), Box<dyn std::error::Error>> {
+    let store = platform();
+    for kind in [StoreKind::Root, StoreKind::Ca] {
+        if let Err(e) = store.probe_write(SystemStore { location, kind }) {
+            if location == Location::LocalMachine {
+                return Err(format!(
+                    "cannot write to the Local Machine store ({e}).\n\
+                     Run this command from an elevated (Administrator) shell, or drop\n\
+                     --machine to install for the current user only (no admin needed)."
+                )
+                .into());
+            }
+            return Err(e.into());
+        }
+    }
+    Ok(())
+}
+
 fn confirm(prompt: &str, yes: bool) -> bool {
     if yes {
         return true;
@@ -225,6 +254,7 @@ fn install(
     yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let location = if machine { Location::LocalMachine } else { Location::CurrentUser };
+    probe_write_or_explain(location)?;
     let bundle = load_bundle(offline)?;
     print_verification(&bundle);
     let report = diff_location(&bundle, location)?;
@@ -287,6 +317,7 @@ fn remove(
     yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let location = if machine { Location::LocalMachine } else { Location::CurrentUser };
+    probe_write_or_explain(location)?;
     let bundle = load_bundle(offline)?;
     let report = diff_location(&bundle, location)?;
     let installed: Vec<_> = report

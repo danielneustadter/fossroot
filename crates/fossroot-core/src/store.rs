@@ -48,6 +48,9 @@ pub trait TrustStore {
     fn add(&self, store: SystemStore, der: &[u8]) -> Result<()>;
     /// Returns true if a certificate was found and removed.
     fn remove_by_sha1(&self, store: SystemStore, sha1: &[u8; 20]) -> Result<bool>;
+    /// Cheap check that the store can be opened for writing (e.g. detects a
+    /// non-elevated process targeting LocalMachine before any work is planned).
+    fn probe_write(&self, store: SystemStore) -> Result<()>;
 }
 
 /// The trust store implementation for the current platform.
