@@ -1,0 +1,34 @@
+[package]
+name = "fossroot-core"
+description = "Core library for Fossroot: fetch, verify, parse, and diff DoD PKI CA certificate bundles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ureq = { version = "2", default-features = false, features = ["tls"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+cms = "0.2"
+x509-cert = "0.2"
+der = { version = "0.7", features = ["alloc", "oid"] }
+rsa = { version = "0.9", features = ["sha2"] }
+p256 = { version = "0.13", features = ["ecdsa"] }
+p384 = { version = "0.13", features = ["ecdsa"] }
+ecdsa = { version = "0.16", features = ["der", "verifying"] }
+sha1 = { version = "0.10", features = ["oid"] }
+sha2 = "0.10"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Security_Cryptography",
+] }
+
+[dev-dependencies]
+zip = { version = "2", default-features = false, features = ["deflate"] }

@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - name: Compute SHA-256
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash target/release/fossroot.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  fossroot.exe" | Out-File -Encoding ascii fossroot.exe.sha256
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/release/fossroot.exe
+            fossroot.exe.sha256
+          generate_release_notes: true
