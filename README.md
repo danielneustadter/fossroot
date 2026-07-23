@@ -15,7 +15,8 @@ A modern, auditable replacement for DISA's InstallRoot utility.
 Accessing DoW websites (OWA, myPay, MilConnect, …) from a personal computer
 requires the DoD PKI root and intermediate CA certificates in your machine's
 trust store. DISA's InstallRoot tool does this, but it is Windows-only, closed
-source, and frozen at v5.6 (2024). Fossroot:
+source, and frozen at v5.6 (2024). Fossroot runs on Windows, macOS, and Linux,
+handles the DoD, ECA, JITC, and WCF bundle groups, and:
 
 - **Fetches the latest official bundle** live from DISA's distribution point
   (`dl.dod.cyber.mil`) — Fossroot never ships certificates of its own.
@@ -39,9 +40,12 @@ this one. Fossroot's answer:
 
 1. **100% open source** — every line that touches your trust store is in this
    repo, in memory-safe Rust.
-2. **No bundled certificates** — trust flows from DISA's live distribution
-   point plus root fingerprints pinned in [`verify.rs`](crates/fossroot-core/src/verify.rs),
-   which you can check against DISA's published values yourself.
+2. **Never bundles the certificates it installs** — those always come live from
+   DISA. The *only* certificate material Fossroot ships is the four DoD **root**
+   CAs, embedded purely as verification anchors and pinned by fingerprint in
+   [`verify.rs`](crates/fossroot-core/src/verify.rs) (each checked against its
+   pin at load). DISA signs every group's manifest with a DoD PKE credential, so
+   those four anchors transitively verify the DoD, ECA, JITC, and WCF bundles.
 3. **Fail-closed verification** — if the manifest signature, a checksum, or a
    single chain fails to verify, nothing is installed.
 4. **Single portable binary** — no installer, no services, no telemetry, no
@@ -58,6 +62,7 @@ fossroot install --machine --prune   # machine-wide + remove stale DoD CAs (elev
 fossroot remove          # uninstall everything the bundle manages
 fossroot export --out d: # dump .cer files + PEM chain (for Firefox, WSL, etc.)
 fossroot ... --offline bundle.zip    # air-gapped: use a hand-carried bundle
+fossroot --group eca status          # ECA / JITC / WCF bundle groups
 ```
 
 ![Fossroot CLI status](docs/screenshot-cli.png)
@@ -73,12 +78,25 @@ cargo build --release
 
 Requires stable Rust. The result is a single self-contained executable.
 
+## Platforms
+
+| Platform | Trust store | Status |
+|---|---|---|
+| Windows | CryptoAPI (`ROOT`/`CA`, user & machine) | Implemented, runtime-verified |
+| Linux | `update-ca-certificates` (Debian) / `update-ca-trust` (RHEL) | Implemented, CI-compiled; runtime pending hardware test |
+| macOS | Security.framework keychain + trust settings | Implemented, CI-compiled; runtime pending hardware test |
+
+All three build, test, clippy, and fmt on every push via the CI matrix.
+
 ## Roadmap
 
 - Firefox/Thunderbird NSS profile support
-- ECA / JITC / WCF bundle groups
-- macOS and Linux trust-store backends (the core is already platform-agnostic)
 - Java keystore support
+- Runtime validation of the Linux/macOS backends on real hardware
+- Code signing (Windows Authenticode/Azure Trusted Signing, macOS notarization)
+  and package-manager distribution (winget, Homebrew tap)
+
+Done: ✅ ECA / JITC / WCF bundle groups · ✅ macOS & Linux trust-store backends.
 
 ## License
 
