@@ -36,6 +36,7 @@ pub struct Identity {
     pub not_after: i64,
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn is_dod(subject: &str, issuer: &str) -> bool {
     let s = format!("{subject} {issuer}").to_uppercase();
     s.contains("OU=DOD") || (s.contains("O=U.S. GOVERNMENT") && s.contains("PKI"))

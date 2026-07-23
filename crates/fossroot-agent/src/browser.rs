@@ -27,6 +27,7 @@ impl Browser {
         }
     }
 
+    #[cfg_attr(not(windows), allow(dead_code))]
     pub fn label(self) -> &'static str {
         match self {
             Browser::Chrome => "Google Chrome",
@@ -34,6 +35,7 @@ impl Browser {
         }
     }
 
+    #[cfg_attr(not(windows), allow(dead_code))]
     fn process(self) -> &'static str {
         match self {
             Browser::Chrome => "chrome.exe",
@@ -60,6 +62,7 @@ pub struct ActionResult {
 
 /// One `AutoSelectCertificateForUrls` entry: for `origin`, auto-pick a client
 /// certificate whose issuer organization is the U.S. Government (i.e. the CAC).
+#[cfg_attr(not(windows), allow(dead_code))]
 fn autoselect_entry(origin: &str) -> String {
     // Chrome's policy value is a stringified JSON object.
     format!(
