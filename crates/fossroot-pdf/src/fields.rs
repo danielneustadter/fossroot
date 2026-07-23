@@ -237,8 +237,9 @@ mod tests {
     #[test]
     fn no_acroform_yields_empty() {
         let mut doc = Document::with_version("1.7");
-        let pages_id =
-            doc.add_object(dictionary! { "Type" => "Pages", "Kids" => Vec::<Object>::new(), "Count" => 0 });
+        let pages_id = doc.add_object(
+            dictionary! { "Type" => "Pages", "Kids" => Vec::<Object>::new(), "Count" => 0 },
+        );
         let cat = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
         doc.trailer.set("Root", cat);
         let mut buf = Vec::new();

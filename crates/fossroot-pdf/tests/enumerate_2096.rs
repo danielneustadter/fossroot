@@ -19,6 +19,11 @@ fn enumerate_real_2096() {
     }
     // The exploration confirmed the 2096 has exactly 4 /Sig fields.
     assert_eq!(fields.len(), 4, "expected 4 signature fields on the 2096");
-    assert!(fields.iter().any(|f| f.name.contains("SIGNATURE_OF_MEMBER")));
-    assert!(fields.iter().all(|f| !f.signed), "blank template is unsigned");
+    assert!(fields
+        .iter()
+        .any(|f| f.name.contains("SIGNATURE_OF_MEMBER")));
+    assert!(
+        fields.iter().all(|f| !f.signed),
+        "blank template is unsigned"
+    );
 }
