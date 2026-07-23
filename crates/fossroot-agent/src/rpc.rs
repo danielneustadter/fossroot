@@ -17,6 +17,18 @@ pub enum Request {
         #[serde(default)]
         group: Option<String>,
     },
+    /// Read-only smart-card / personal-cert status (CAC present?).
+    ScStatus,
+    /// Consent-gated: close and reopen the browser to clear a stale CAC session.
+    RelaunchBrowser { browser: String },
+    /// Consent-gated: write an AutoSelectCertificateForUrls policy so the
+    /// browser stops re-prompting for the CAC on the given origins.
+    ApplyAutoselect {
+        browser: String,
+        origins: Vec<String>,
+    },
+    /// Remove the auto-select policy this agent wrote.
+    RemoveAutoselect { browser: String },
 }
 
 #[derive(Debug, Serialize)]
@@ -46,6 +58,49 @@ pub fn handle(req: Request) -> Response {
             "agent_version": env!("CARGO_PKG_VERSION"),
         })),
         Request::TrustStatus { group } => trust_status(group.as_deref()),
+        Request::ScStatus => match serde_json::to_value(crate::smartcard::status()) {
+            Ok(mut v) => {
+                if let Some(obj) = v.as_object_mut() {
+                    obj.insert("ok".into(), serde_json::json!(true));
+                    obj.insert("method".into(), serde_json::json!("sc_status"));
+                }
+                Response::Ok(v)
+            }
+            Err(e) => Response::err(format!("serialize sc_status: {e}")),
+        },
+        Request::RelaunchBrowser { browser } => browser_action(&browser, crate::browser::relaunch),
+        Request::ApplyAutoselect { browser, origins } => {
+            match crate::browser::Browser::from_token(&browser) {
+                Some(b) => match crate::browser::apply_autoselect(b, &origins) {
+                    Ok(r) => action_response(r),
+                    Err(e) => Response::err(e.to_string()),
+                },
+                None => Response::err(format!("unknown browser '{browser}'")),
+            }
+        }
+        Request::RemoveAutoselect { browser } => {
+            browser_action(&browser, crate::browser::remove_autoselect)
+        }
+    }
+}
+
+fn browser_action(
+    browser: &str,
+    f: impl Fn(crate::browser::Browser) -> std::io::Result<crate::browser::ActionResult>,
+) -> Response {
+    match crate::browser::Browser::from_token(browser) {
+        Some(b) => match f(b) {
+            Ok(r) => action_response(r),
+            Err(e) => Response::err(e.to_string()),
+        },
+        None => Response::err(format!("unknown browser '{browser}'")),
+    }
+}
+
+fn action_response(r: crate::browser::ActionResult) -> Response {
+    match serde_json::to_value(r) {
+        Ok(v) => Response::Ok(v),
+        Err(e) => Response::err(format!("serialize action: {e}")),
     }
 }
 

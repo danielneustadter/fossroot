@@ -19,8 +19,9 @@ one local native agent:
 |---|---|---|
 | `fossroot` | The trust-store manager (this README) | Shipped |
 | `fossroot-core` | Shared Rust engine: fetch, verify, diff, trust stores | Shipped |
-| `fossroot-agent` | Native-messaging host bridging the browser to the local machine | Spike |
-| [`extension/`](extension/) | Chrome/Edge extension: trust status in the browser | Spike |
+| `fossroot-agent` | Native-messaging host bridging the browser to the local machine | Working |
+| [FossRoot CAC Reset](extensions/cac-reset/) | Chrome/Edge extension: fixes the "must restart browser to reset my CAC" problem (+ trust status) | Working |
+| FossRoot Signer | Chrome/Edge extension: sign a PDF (e.g. DAF 2096) with your CAC, no Adobe Reader | Planned |
 
 The agent is the keystone: browsers deliberately sandbox away from smart cards
 and the OS trust store, so the planned browser-session helper and in-browser CAC

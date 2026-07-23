@@ -5,9 +5,11 @@
 //! (this is how the browser launches it). `register` / `unregister` manage the
 //! host manifest and per-browser pointers so the extension can find it.
 
+mod browser;
 mod protocol;
 mod register;
 mod rpc;
+mod smartcard;
 
 use std::io::{self, Write};
 

@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1a1c1e;
+        --muted: #6b7280;
+        --ok: #2e9e5b;
+        --warn: #d97706;
+        --err: #cc3333;
+        --card: rgba(0, 0, 0, 0.04);
+        --btn: rgba(0, 0, 0, 0.06);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #dcdfe4;
+          --muted: #9aa0a6;
+          --card: rgba(255, 255, 255, 0.06);
+          --btn: rgba(255, 255, 255, 0.1);
+        }
+      }
+      body {
+        width: 340px;
+        margin: 0;
+        padding: 14px 16px;
+        font: 13px/1.4 system-ui, -apple-system, Segoe UI, sans-serif;
+        color: var(--fg);
+      }
+      header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+      h1 { font-size: 15px; margin: 0; }
+      .sub { color: var(--muted); font-size: 11px; }
+      .card { background: var(--card); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+      .title { font-weight: 600; margin-bottom: 2px; }
+      .ok { color: var(--ok); }
+      .warn { color: var(--warn); }
+      .err { color: var(--err); }
+      .muted { color: var(--muted); }
+      .row { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted); }
+      button {
+        font: inherit;
+        color: var(--fg);
+        background: var(--btn);
+        border: none;
+        border-radius: 7px;
+        padding: 8px 10px;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        margin-top: 6px;
+      }
+      button:hover { filter: brightness(1.08); }
+      button:disabled { opacity: 0.5; cursor: default; }
+      button .b-sub { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+      #result { margin-top: 8px; font-size: 12px; }
+      code { font-family: ui-monospace, Consolas, monospace; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>FossRoot CAC Reset</h1>
+      <span class="sub">CAC health</span>
+    </header>
+
+    <div id="card-status" class="card"><span class="muted">Checking your card…</span></div>
+    <div id="trust-status" class="card"><span class="muted">Checking DoD trust…</span></div>
+
+    <button id="btn-reset">
+      Reset browser for CAC
+      <span class="b-sub">Closes &amp; reopens the browser (tabs restored) to clear a stale CAC session. No admin needed.</span>
+    </button>
+    <button id="btn-autoselect">
+      Stop asking for a cert on this site
+      <span class="b-sub">Writes a browser policy so this site auto-picks your CAC. May require admin on managed machines.</span>
+    </button>
+
+    <div id="result"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

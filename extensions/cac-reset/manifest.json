@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Fossroot",
+  "name": "FossRoot CAC Reset",
   "version": "0.1.0",
-  "description": "See your DoD PKI trust status in the browser. Talks to the local Fossroot Agent; no data leaves your machine.",
+  "description": "Fixes the 'I forgot to plug in my CAC, now I have to restart the whole browser' problem. Talks only to the local FossRoot Agent; nothing leaves your machine.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA575a09FtO4cfEgXYfcx1BQlci6X8MPimcapBvmvh77uiFQ/5dpBbj8Pjj3LXNUdVcX2Lh1MfZysaWkTgU3kEr6qCYOHxiW4RlbQiMUXaB/5RlHojF6J+DxLUa9l76Gz3d4BbHmWk6xwRIWCPohl+tl1gx1M0mltXWta34rSY8AOLLXsn9tuXM6fR7VyJdAzgalX/ZfRQyWopAV6M6D6wMypl87LhGHkYV6eux3K/Tz7PnlI7vLv61XyjT42cwDWV6p5ZHqbcpgt9CLk25thf51iIufC6AomcEWRYVANzsiFqx/FJnyqi2mvmTnALJNGJePZTepWp1oa+5IKBhgr0KwIDAQAB",
-  "permissions": ["nativeMessaging"],
+  "permissions": ["nativeMessaging", "activeTab", "webRequest", "storage"],
+  "host_permissions": ["*://*.mil/*"],
+  "background": { "service_worker": "background.js" },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Fossroot"
+    "default_title": "FossRoot CAC Reset"
   }
 }
