@@ -476,7 +476,7 @@ fn export(
             })
             .collect();
         std::fs::write(out.join(format!("{safe}.cer")), &cert.der)?;
-        chain.push_str(&pem_encode(&cert.der));
+        chain.push_str(&fossroot_core::certs::to_pem(&cert.der));
     }
     std::fs::write(out.join("dod_ca_chain.pem"), chain)?;
     println!(
@@ -485,37 +485,4 @@ fn export(
         out.display()
     );
     Ok(())
-}
-
-fn pem_encode(der: &[u8]) -> String {
-    // Minimal PEM writer (base64 with 64-char lines).
-    const TBL: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut b64 = String::new();
-    for chunk in der.chunks(3) {
-        let b = [
-            chunk[0],
-            *chunk.get(1).unwrap_or(&0),
-            *chunk.get(2).unwrap_or(&0),
-        ];
-        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
-        b64.push(TBL[(n >> 18) as usize & 63] as char);
-        b64.push(TBL[(n >> 12) as usize & 63] as char);
-        b64.push(if chunk.len() > 1 {
-            TBL[(n >> 6) as usize & 63] as char
-        } else {
-            '='
-        });
-        b64.push(if chunk.len() > 2 {
-            TBL[n as usize & 63] as char
-        } else {
-            '='
-        });
-    }
-    let mut out = String::from("-----BEGIN CERTIFICATE-----\n");
-    for line in b64.as_bytes().chunks(64) {
-        out.push_str(std::str::from_utf8(line).unwrap());
-        out.push('\n');
-    }
-    out.push_str("-----END CERTIFICATE-----\n");
-    out
 }

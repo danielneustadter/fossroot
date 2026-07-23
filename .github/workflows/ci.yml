@@ -7,14 +7,21 @@ on:
 
 jobs:
   test:
+    name: test (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+      # Compiles the platform-specific trust-store backend for this OS
+      # (Windows CryptoAPI / macOS Security.framework / Linux ca-certificates).
+      - run: cargo build --workspace
       - run: cargo test --workspace
-      - run: cargo clippy --workspace -- -D warnings
+      - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo fmt --all --check

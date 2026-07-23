@@ -5,6 +5,12 @@ use crate::Result;
 #[cfg(windows)]
 pub mod windows;
 
+#[cfg(target_os = "linux")]
+pub mod linux;
+
+#[cfg(target_os = "macos")]
+pub mod macos;
+
 /// Which physical store location to operate on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -57,4 +63,14 @@ pub trait TrustStore {
 #[cfg(windows)]
 pub fn platform() -> impl TrustStore {
     windows::WindowsStore
+}
+
+#[cfg(target_os = "linux")]
+pub fn platform() -> impl TrustStore {
+    linux::LinuxStore
+}
+
+#[cfg(target_os = "macos")]
+pub fn platform() -> impl TrustStore {
+    macos::MacStore
 }

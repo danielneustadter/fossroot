@@ -121,3 +121,16 @@ pub fn format_unix(ts: i64) -> String {
         .map(|dt| dt.format("%Y-%m-%d").to_string())
         .unwrap_or_else(|| ts.to_string())
 }
+
+/// Encode a DER certificate as a PEM `CERTIFICATE` block (64-char lines).
+pub fn to_pem(der: &[u8]) -> String {
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(der);
+    let mut out = String::from("-----BEGIN CERTIFICATE-----\n");
+    for line in b64.as_bytes().chunks(64) {
+        out.push_str(std::str::from_utf8(line).unwrap());
+        out.push('\n');
+    }
+    out.push_str("-----END CERTIFICATE-----\n");
+    out
+}
