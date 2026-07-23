@@ -81,7 +81,8 @@ impl CertInfo {
 /// Extract every certificate from a PKCS#7/CMS SignedData blob (DER or PEM).
 pub fn parse_p7b(bytes: &[u8]) -> Result<Vec<CertInfo>> {
     let der_bytes = maybe_pem_to_der(bytes)?;
-    let ci = ContentInfo::from_der(&der_bytes).map_err(|e| Error::Der(format!("ContentInfo: {e}")))?;
+    let ci =
+        ContentInfo::from_der(&der_bytes).map_err(|e| Error::Der(format!("ContentInfo: {e}")))?;
     let sd: SignedData = ci
         .content
         .decode_as()

@@ -3,6 +3,8 @@
 **Open-source, single-binary manager for DoD PKI CA certificate trust stores.**
 A modern, auditable replacement for DISA's InstallRoot utility.
 
+![Fossroot GUI](docs/screenshot-main.png)
+
 > ⚠️ **Unofficial community tool.** Fossroot is not affiliated with, endorsed by, or
 > supported by the U.S. Department of War, DISA, or any government agency.
 > "InstallRoot" is DISA's product; Fossroot is an independent open-source
@@ -57,6 +59,11 @@ fossroot remove          # uninstall everything the bundle manages
 fossroot export --out d: # dump .cer files + PEM chain (for Firefox, WSL, etc.)
 fossroot ... --offline bundle.zip    # air-gapped: use a hand-carried bundle
 ```
+
+![Fossroot CLI status](docs/screenshot-cli.png)
+
+The same verification runs whether you use the GUI or the CLI — the diff you see
+is exactly what will change, and nothing is written until you confirm.
 
 ## Building
 

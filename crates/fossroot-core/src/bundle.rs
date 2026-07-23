@@ -54,7 +54,8 @@ impl Bundle {
     /// Parse + verify the official zip layout (…_DoD.der.p7b + CMS .sha256 manifest).
     pub fn from_zip_bytes(raw: &[u8], source: &str) -> Result<Bundle> {
         let zip_sha256 = hex(&Sha256::digest(raw));
-        let mut zip = zip::ZipArchive::new(Cursor::new(raw)).map_err(|e| Error::Zip(e.to_string()))?;
+        let mut zip =
+            zip::ZipArchive::new(Cursor::new(raw)).map_err(|e| Error::Zip(e.to_string()))?;
 
         let mut p7b_name = None;
         let mut manifest_name = None;
@@ -76,13 +77,14 @@ impl Bundle {
         let p7b_name = p7b_name.ok_or_else(|| Error::MissingFile("*_DoD.der.p7b".into()))?;
         let manifest_name = manifest_name.ok_or_else(|| Error::MissingFile("*.sha256".into()))?;
 
-        let read_entry = |zip: &mut zip::ZipArchive<Cursor<&[u8]>>, name: &str| -> Result<Vec<u8>> {
-            let mut buf = Vec::new();
-            zip.by_name(name)
-                .map_err(|e| Error::Zip(e.to_string()))?
-                .read_to_end(&mut buf)?;
-            Ok(buf)
-        };
+        let read_entry =
+            |zip: &mut zip::ZipArchive<Cursor<&[u8]>>, name: &str| -> Result<Vec<u8>> {
+                let mut buf = Vec::new();
+                zip.by_name(name)
+                    .map_err(|e| Error::Zip(e.to_string()))?
+                    .read_to_end(&mut buf)?;
+                Ok(buf)
+            };
         let p7b_bytes = read_entry(&mut zip, &p7b_name)?;
         let manifest_bytes = read_entry(&mut zip, &manifest_name)?;
 

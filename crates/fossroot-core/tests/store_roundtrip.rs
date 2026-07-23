@@ -36,9 +36,8 @@ fn current_user_ca_roundtrip() {
         kind: StoreKind::Ca,
     };
 
-    let present = |s: &dyn Fn() -> Vec<fossroot_core::InstalledCert>| {
-        s().iter().any(|i| i.sha1 == cert.sha1)
-    };
+    let present =
+        |s: &dyn Fn() -> Vec<fossroot_core::InstalledCert>| s().iter().any(|i| i.sha1 == cert.sha1);
     let listing = || store.list(target).expect("list CA store");
 
     // If a previous failed run left it behind, clean first.
@@ -51,7 +50,9 @@ fn current_user_ca_roundtrip() {
     assert!(store.remove_by_sha1(target, &cert.sha1).expect("remove"));
     assert!(!present(&listing), "cert gone after remove");
     assert!(
-        !store.remove_by_sha1(target, &cert.sha1).expect("second remove"),
+        !store
+            .remove_by_sha1(target, &cert.sha1)
+            .expect("second remove"),
         "second remove reports not found"
     );
 }

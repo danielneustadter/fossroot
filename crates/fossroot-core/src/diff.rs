@@ -92,7 +92,11 @@ mod tests {
     fn fake_cert(subject: &str, self_issued: bool, sha1_seed: u8, not_after: i64) -> CertInfo {
         CertInfo {
             subject: subject.into(),
-            issuer: if self_issued { subject.into() } else { "CN=Other".into() },
+            issuer: if self_issued {
+                subject.into()
+            } else {
+                "CN=Other".into()
+            },
             serial: "01".into(),
             not_before: 0,
             not_after,
@@ -115,11 +119,29 @@ mod tests {
     fn classifies_installed_missing_expired() {
         let far = 4102444800; // 2100
         let bundle = vec![
-            fake_cert("CN=DoD Root CA 3,OU=PKI,OU=DoD,O=U.S. Government,C=US", true, 1, far),
-            fake_cert("CN=DOD ID CA-59,OU=PKI,OU=DoD,O=U.S. Government,C=US", false, 2, far),
-            fake_cert("CN=DOD OLD CA,OU=PKI,OU=DoD,O=U.S. Government,C=US", false, 3, 100),
+            fake_cert(
+                "CN=DoD Root CA 3,OU=PKI,OU=DoD,O=U.S. Government,C=US",
+                true,
+                1,
+                far,
+            ),
+            fake_cert(
+                "CN=DOD ID CA-59,OU=PKI,OU=DoD,O=U.S. Government,C=US",
+                false,
+                2,
+                far,
+            ),
+            fake_cert(
+                "CN=DOD OLD CA,OU=PKI,OU=DoD,O=U.S. Government,C=US",
+                false,
+                3,
+                100,
+            ),
         ];
-        let in_root = vec![installed("CN=DoD Root CA 3,OU=PKI,OU=DoD,O=U.S. Government,C=US", 1)];
+        let in_root = vec![installed(
+            "CN=DoD Root CA 3,OU=PKI,OU=DoD,O=U.S. Government,C=US",
+            1,
+        )];
         let report = diff(&bundle, &in_root, &[], 1_000_000);
         assert_eq!(report.installed, 1);
         assert_eq!(report.missing, 1);
@@ -130,7 +152,10 @@ mod tests {
     #[test]
     fn flags_stale_dod_certs_only() {
         let in_ca = vec![
-            installed("CN=DOD EMAIL CA-33, OU=PKI, OU=DoD, O=U.S. Government, C=US", 9),
+            installed(
+                "CN=DOD EMAIL CA-33, OU=PKI, OU=DoD, O=U.S. Government, C=US",
+                9,
+            ),
             installed("CN=Some Corp CA, O=Some Corp, C=US", 10),
         ];
         let report = diff(&[], &[], &in_ca, 0);

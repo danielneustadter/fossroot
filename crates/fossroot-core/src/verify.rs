@@ -182,7 +182,8 @@ pub fn verify_raw_signature(
     match alg_oid {
         SHA1_WITH_RSA | SHA256_WITH_RSA | SHA384_WITH_RSA | SHA512_WITH_RSA => {
             use rsa::pkcs1::DecodeRsaPublicKey;
-            let key = rsa::RsaPublicKey::from_pkcs1_der(key_bits).map_err(|e| fail(e.to_string()))?;
+            let key =
+                rsa::RsaPublicKey::from_pkcs1_der(key_bits).map_err(|e| fail(e.to_string()))?;
             let (scheme, hashed): (rsa::pkcs1v15::Pkcs1v15Sign, Vec<u8>) = match alg_oid {
                 SHA1_WITH_RSA => (
                     rsa::pkcs1v15::Pkcs1v15Sign::new::<sha1::Sha1>(),
@@ -243,7 +244,8 @@ pub struct Manifest {
 /// `extra_pool`, i.e. the certificate bundle itself — trust still bottoms out
 /// at the pinned fingerprints).
 pub fn verify_manifest(cms_bytes: &[u8], extra_pool: &[CertInfo]) -> Result<Manifest> {
-    let ci = ContentInfo::from_der(cms_bytes).map_err(|e| Error::Der(format!("manifest ContentInfo: {e}")))?;
+    let ci = ContentInfo::from_der(cms_bytes)
+        .map_err(|e| Error::Der(format!("manifest ContentInfo: {e}")))?;
     let sd: SignedData = ci
         .content
         .decode_as()
@@ -315,7 +317,11 @@ pub fn verify_manifest(cms_bytes: &[u8], extra_pool: &[CertInfo]) -> Result<Mani
                 "2.16.840.1.101.3.4.2.1" => Sha256::digest(&payload).to_vec(),
                 "2.16.840.1.101.3.4.2.2" => Sha384::digest(&payload).to_vec(),
                 "2.16.840.1.101.3.4.2.3" => Sha512::digest(&payload).to_vec(),
-                other => return Err(Error::Verify(format!("unsupported manifest digest {other}"))),
+                other => {
+                    return Err(Error::Verify(format!(
+                        "unsupported manifest digest {other}"
+                    )))
+                }
             };
             if attr_digest.as_bytes() != payload_digest.as_slice() {
                 return Err(Error::Verify(

@@ -65,17 +65,24 @@ enum Command {
     },
 }
 
-pub fn run_help_banner() {
-    use clap::CommandFactory;
-    Args::command().print_help().ok();
-    println!();
-}
-
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     match Args::parse().command {
-        Command::Status { offline, json, verbose } => status(offline, json, verbose),
-        Command::Install { machine, offline, prune, yes } => install(machine, offline, prune, yes),
-        Command::Remove { machine, offline, yes } => remove(machine, offline, yes),
+        Command::Status {
+            offline,
+            json,
+            verbose,
+        } => status(offline, json, verbose),
+        Command::Install {
+            machine,
+            offline,
+            prune,
+            yes,
+        } => install(machine, offline, prune, yes),
+        Command::Remove {
+            machine,
+            offline,
+            yes,
+        } => remove(machine, offline, yes),
         Command::Export { out, offline } => export(out, offline),
     }
 }
@@ -87,26 +94,50 @@ fn load_bundle(offline: Option<std::path::PathBuf>) -> Result<Bundle, Box<dyn st
             Ok(Bundle::from_file(&path)?)
         }
         None => {
-            eprintln!("Fetching DoD bundle from {} ...", fossroot_core::DOD_BUNDLE_URL);
+            eprintln!(
+                "Fetching DoD bundle from {} ...",
+                fossroot_core::DOD_BUNDLE_URL
+            );
             Ok(Bundle::fetch()?)
         }
     }
 }
 
-fn diff_location(bundle: &Bundle, location: Location) -> Result<DiffReport, Box<dyn std::error::Error>> {
+fn diff_location(
+    bundle: &Bundle,
+    location: Location,
+) -> Result<DiffReport, Box<dyn std::error::Error>> {
     let store = platform();
-    let in_root = store.list(SystemStore { location, kind: StoreKind::Root })?;
-    let in_ca = store.list(SystemStore { location, kind: StoreKind::Ca })?;
-    Ok(diff::diff(&bundle.certs, &in_root, &in_ca, chrono::Utc::now().timestamp()))
+    let in_root = store.list(SystemStore {
+        location,
+        kind: StoreKind::Root,
+    })?;
+    let in_ca = store.list(SystemStore {
+        location,
+        kind: StoreKind::Ca,
+    })?;
+    Ok(diff::diff(
+        &bundle.certs,
+        &in_root,
+        &in_ca,
+        chrono::Utc::now().timestamp(),
+    ))
 }
 
 fn print_verification(bundle: &Bundle) {
-    println!("Bundle:    DoD PKI v{} ({} certificates)", bundle.version, bundle.certs.len());
+    println!(
+        "Bundle:    DoD PKI v{} ({} certificates)",
+        bundle.version,
+        bundle.certs.len()
+    );
     println!("Source:    {}", bundle.source);
     if !bundle.zip_sha256.is_empty() {
         println!("Zip SHA-256: {}", bundle.zip_sha256);
     }
-    match (&bundle.verify.manifest_signed, &bundle.verify.manifest_signer) {
+    match (
+        &bundle.verify.manifest_signed,
+        &bundle.verify.manifest_signer,
+    ) {
         (true, Some(signer)) => {
             println!("Manifest:  SIGNED — DoD PKE credential '{signer}', chain verified to pinned DoD root");
         }
@@ -151,9 +182,7 @@ fn status(
         .entries
         .iter()
         .zip(machine.entries.iter())
-        .filter(|(u, m)| {
-            u.status == CertStatus::Installed || m.status == CertStatus::Installed
-        })
+        .filter(|(u, m)| u.status == CertStatus::Installed || m.status == CertStatus::Installed)
         .count();
     let usable_total = user.installed + user.missing;
     println!("Effective trust: {effective}/{usable_total} DoD CAs usable on this machine");
@@ -179,12 +208,18 @@ fn status(
 
     if verbose {
         println!();
-        println!("{:<44} {:<5} {:<10} {:<10}", "Certificate", "Store", "Expires", "User/Machine");
+        println!(
+            "{:<44} {:<5} {:<10} {:<10}",
+            "Certificate", "Store", "Expires", "User/Machine"
+        );
         for (ue, me) in user.entries.iter().zip(machine.entries.iter()) {
             println!(
                 "{:<44} {:<5} {:<10} {:?}/{:?}",
                 ue.cert.display_name(),
-                match ue.store { StoreKind::Root => "ROOT", StoreKind::Ca => "CA" },
+                match ue.store {
+                    StoreKind::Root => "ROOT",
+                    StoreKind::Ca => "CA",
+                },
                 format_unix(ue.cert.not_after),
                 ue.status,
                 me.status
@@ -192,7 +227,11 @@ fn status(
         }
         for (loc, report) in [("CurrentUser", &user), ("LocalMachine", &machine)] {
             for stale in &report.stale {
-                println!("STALE in {loc}: {} (expires {})", stale.subject, format_unix(stale.not_after));
+                println!(
+                    "STALE in {loc}: {} (expires {})",
+                    stale.subject,
+                    format_unix(stale.not_after)
+                );
             }
         }
     } else {
@@ -207,7 +246,10 @@ fn status(
                 println!(
                     "  {} [{}] expires {}",
                     e.cert.display_name(),
-                    match e.store { StoreKind::Root => "ROOT", StoreKind::Ca => "CA" },
+                    match e.store {
+                        StoreKind::Root => "ROOT",
+                        StoreKind::Ca => "CA",
+                    },
                     format_unix(e.cert.not_after)
                 );
             }
@@ -253,7 +295,11 @@ fn install(
     prune: bool,
     yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let location = if machine { Location::LocalMachine } else { Location::CurrentUser };
+    let location = if machine {
+        Location::LocalMachine
+    } else {
+        Location::CurrentUser
+    };
     probe_write_or_explain(location)?;
     let bundle = load_bundle(offline)?;
     print_verification(&bundle);
@@ -264,10 +310,17 @@ fn install(
         .iter()
         .filter(|e| e.status == CertStatus::Missing)
         .collect();
-    let stale = if prune { report.stale.clone() } else { Vec::new() };
+    let stale = if prune {
+        report.stale.clone()
+    } else {
+        Vec::new()
+    };
 
     if to_install.is_empty() && stale.is_empty() {
-        println!("\nNothing to do: store is already up to date with bundle v{}.", bundle.version);
+        println!(
+            "\nNothing to do: store is already up to date with bundle v{}.",
+            bundle.version
+        );
         return Ok(());
     }
 
@@ -276,7 +329,10 @@ fn install(
         println!(
             "  + {} → {} store (expires {})",
             e.cert.display_name(),
-            match e.store { StoreKind::Root => "ROOT", StoreKind::Ca => "CA" },
+            match e.store {
+                StoreKind::Root => "ROOT",
+                StoreKind::Ca => "CA",
+            },
             format_unix(e.cert.not_after)
         );
     }
@@ -292,7 +348,10 @@ fn install(
     let mut added = 0usize;
     for e in &to_install {
         store.add(
-            SystemStore { location, kind: e.store },
+            SystemStore {
+                location,
+                kind: e.store,
+            },
             &e.cert.der,
         )?;
         added += 1;
@@ -316,7 +375,11 @@ fn remove(
     offline: Option<std::path::PathBuf>,
     yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let location = if machine { Location::LocalMachine } else { Location::CurrentUser };
+    let location = if machine {
+        Location::LocalMachine
+    } else {
+        Location::CurrentUser
+    };
     probe_write_or_explain(location)?;
     let bundle = load_bundle(offline)?;
     let report = diff_location(&bundle, location)?;
@@ -326,10 +389,17 @@ fn remove(
         .filter(|e| e.status == CertStatus::Installed)
         .collect();
     if installed.is_empty() {
-        println!("No bundle certificates are present in {:?}; nothing to remove.", location);
+        println!(
+            "No bundle certificates are present in {:?}; nothing to remove.",
+            location
+        );
         return Ok(());
     }
-    println!("This removes {} DoD certificates from {:?}:", installed.len(), location);
+    println!(
+        "This removes {} DoD certificates from {:?}:",
+        installed.len(),
+        location
+    );
     for e in &installed {
         println!("  - {}", e.cert.display_name());
     }
@@ -340,7 +410,13 @@ fn remove(
     let store = platform();
     let mut removed = 0usize;
     for e in &installed {
-        if store.remove_by_sha1(SystemStore { location, kind: e.store }, &e.cert.sha1)? {
+        if store.remove_by_sha1(
+            SystemStore {
+                location,
+                kind: e.store,
+            },
+            &e.cert.sha1,
+        )? {
             removed += 1;
         }
     }
@@ -360,13 +436,23 @@ fn export(
         let safe: String = cert
             .display_name()
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '.' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '.' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         std::fs::write(out.join(format!("{safe}.cer")), &cert.der)?;
         chain.push_str(&pem_encode(&cert.der));
     }
     std::fs::write(out.join("dod_ca_chain.pem"), chain)?;
-    println!("\nExported {} certificates to {}", bundle.certs.len(), out.display());
+    println!(
+        "\nExported {} certificates to {}",
+        bundle.certs.len(),
+        out.display()
+    );
     Ok(())
 }
 
@@ -375,12 +461,24 @@ fn pem_encode(der: &[u8]) -> String {
     const TBL: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut b64 = String::new();
     for chunk in der.chunks(3) {
-        let b = [chunk[0], *chunk.get(1).unwrap_or(&0), *chunk.get(2).unwrap_or(&0)];
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
         let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
         b64.push(TBL[(n >> 18) as usize & 63] as char);
         b64.push(TBL[(n >> 12) as usize & 63] as char);
-        b64.push(if chunk.len() > 1 { TBL[(n >> 6) as usize & 63] as char } else { '=' });
-        b64.push(if chunk.len() > 2 { TBL[n as usize & 63] as char } else { '=' });
+        b64.push(if chunk.len() > 1 {
+            TBL[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        b64.push(if chunk.len() > 2 {
+            TBL[n as usize & 63] as char
+        } else {
+            '='
+        });
     }
     let mut out = String::from("-----BEGIN CERTIFICATE-----\n");
     for line in b64.as_bytes().chunks(64) {

@@ -1,0 +1,18 @@
+Loading bundle from C:/Users/BILLGA~1/AppData/Local/Temp/claude/C--Users-billgates-code/edaee648-281c-452a-a5d0-3b951c445043/scratchpad/unclass-certificates_pkcs7_DoD.zip ...
+Bundle:    DoD PKI v5.14 (49 certificates)
+Source:    C:/Users/BILLGA~1/AppData/Local/Temp/claude/C--Users-billgates-code/edaee648-281c-452a-a5d0-3b951c445043/scratchpad/unclass-certificates_pkcs7_DoD.zip
+Zip SHA-256: 32595adbe752df5823cedd2c6a4f206c07fcc3c1520fb831015204e9fbb75711
+Manifest:  SIGNED — DoD PKE credential 'OTT.JULIA.LORRAINE.1294802467', chain verified to pinned DoD root
+Chains:    all 49 certificates verify to pinned roots (DoD Root CA 4, DoD Root CA 5, DoD Root CA 3, DoD Root CA 6)
+
+Effective trust: 44/45 DoD CAs usable on this machine
+Current User : 43/45 installed, 2 missing (4 expired in bundle, ignored)
+Local Machine: 44/45 installed, 1 missing (4 expired in bundle, ignored)
+
+Certificate                                  Store Expires    User/Machine
+DoD Root CA 4                                ROOT  2032-07-25 Missing/Missing
+DoD Root CA 5                                ROOT  2041-06-14 Installed/Installed
+DOD SW CA-61                                 CA    2025-03-31 Expired/Expired
+DOD SW CA-76                                 CA    2029-05-14 Missing/Installed
+DOD SW CA-77                                 CA    2029-05-14 Installed/Installed
+DOD SW CA-85                                 CA    2031-01-22 Installed/Installed

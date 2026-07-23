@@ -18,10 +18,21 @@ fn parses_and_verifies_official_zip() {
         return;
     };
     let bundle = Bundle::from_zip_bytes(&raw, "test-fixture").expect("bundle should verify");
-    assert!(bundle.certs.len() >= 40, "expected a full bundle, got {}", bundle.certs.len());
-    assert!(bundle.verify.manifest_signed, "manifest must be CMS-verified");
     assert!(
-        bundle.verify.anchored_roots.iter().any(|r| r.contains("Root CA 3")),
+        bundle.certs.len() >= 40,
+        "expected a full bundle, got {}",
+        bundle.certs.len()
+    );
+    assert!(
+        bundle.verify.manifest_signed,
+        "manifest must be CMS-verified"
+    );
+    assert!(
+        bundle
+            .verify
+            .anchored_roots
+            .iter()
+            .any(|r| r.contains("Root CA 3")),
         "DoD Root CA 3 should anchor the bundle"
     );
     assert!(!bundle.version.is_empty() && bundle.version != "unknown");
