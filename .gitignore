@@ -5,3 +5,7 @@ fossroot-export/
 *.zip
 *.cer
 /dist
+
+# ...but the embedded DoD root anchors are source, not exported output.
+!crates/fossroot-core/src/anchors/
+!crates/fossroot-core/src/anchors/*.cer
