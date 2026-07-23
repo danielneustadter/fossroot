@@ -4,3 +4,4 @@ fossroot-export/
 *.p7b
 *.zip
 *.cer
+/dist
