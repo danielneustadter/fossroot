@@ -6,7 +6,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use eframe::egui::{self, Color32, RichText};
 use egui_extras::{Column, TableBuilder};
 use fossroot_core::store::{platform, Location, StoreKind, SystemStore, TrustStore};
-use fossroot_core::{diff, Bundle, CertStatus, DiffReport};
+use fossroot_core::{diff, Bundle, CertStatus, DiffReport, Group};
 
 pub fn run() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -54,10 +54,11 @@ struct App {
     last_action: Option<Result<String, String>>,
     confirm_remove: bool,
     show_certs: bool,
+    group: Group,
 }
 
-fn load_data() -> Result<Data, String> {
-    let bundle = Bundle::fetch().map_err(|e| e.to_string())?;
+fn load_data(group: Group) -> Result<Data, String> {
+    let bundle = Bundle::fetch_group(group).map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().timestamp();
     let store = platform();
     let mut reports = Vec::new();
@@ -85,8 +86,8 @@ fn load_data() -> Result<Data, String> {
     })
 }
 
-fn apply_install(location: Location) -> Result<String, String> {
-    let data = load_data()?;
+fn apply_install(group: Group, location: Location) -> Result<String, String> {
+    let data = load_data(group)?;
     let report = match location {
         Location::CurrentUser => &data.user,
         Location::LocalMachine => &data.machine,
@@ -112,8 +113,8 @@ fn apply_install(location: Location) -> Result<String, String> {
     Ok(format!("Installed {added} certificates"))
 }
 
-fn apply_remove(location: Location) -> Result<String, String> {
-    let data = load_data()?;
+fn apply_remove(group: Group, location: Location) -> Result<String, String> {
+    let data = load_data(group)?;
     let report = match location {
         Location::CurrentUser => &data.user,
         Location::LocalMachine => &data.machine,
@@ -152,25 +153,30 @@ impl App {
             last_action: None,
             confirm_remove: false,
             show_certs: true,
+            group: Group::Dod,
         };
         app.spawn_load();
         app
     }
 
     fn spawn_load(&self) {
-        let tx = self.tx.clone();
+        let (tx, group) = (self.tx.clone(), self.group);
         std::thread::spawn(move || {
-            let _ = tx.send(Msg::Loaded(Box::new(load_data())));
+            let _ = tx.send(Msg::Loaded(Box::new(load_data(group))));
         });
     }
 
-    fn spawn_apply(&mut self, f: fn(Location) -> Result<String, String>, location: Location) {
+    fn spawn_apply(
+        &mut self,
+        f: fn(Group, Location) -> Result<String, String>,
+        location: Location,
+    ) {
         self.busy = true;
-        let tx = self.tx.clone();
+        let (tx, group) = (self.tx.clone(), self.group);
         std::thread::spawn(move || {
-            let result = f(location);
+            let result = f(group, location);
             let _ = tx.send(Msg::Applied(result));
-            let _ = tx.send(Msg::Loaded(Box::new(load_data())));
+            let _ = tx.send(Msg::Loaded(Box::new(load_data(group))));
         });
     }
 }
@@ -239,6 +245,23 @@ impl eframe::App for App {
                         self.state = State::Loading;
                         self.spawn_load();
                     }
+                    // Bundle-group selector — switching reloads.
+                    let mut new_group = self.group;
+                    ui.add_enabled_ui(!self.busy, |ui| {
+                        egui::ComboBox::from_id_salt("group")
+                            .selected_text(new_group.name())
+                            .show_ui(ui, |ui| {
+                                for g in Group::ALL {
+                                    ui.selectable_value(&mut new_group, g, g.name());
+                                }
+                            });
+                    });
+                    ui.label(RichText::new("Bundle:").weak());
+                    if new_group != self.group {
+                        self.group = new_group;
+                        self.state = State::Loading;
+                        self.spawn_load();
+                    }
                 });
             });
             ui.add_space(6.0);
@@ -278,10 +301,30 @@ impl eframe::App for App {
             }
             State::Ready(data) => {
                 let bundle = &data.bundle;
+                // --- test-PKI warning ---
+                if bundle.group.is_test_pki() {
+                    egui::Frame::group(ui.style())
+                        .fill(Color32::from_rgb(0x5c, 0x3a, 0x00))
+                        .show(ui, |ui| {
+                            ui.label(
+                                RichText::new(format!(
+                                    "⚠ {} is a TEST PKI — for interoperability testing only. \
+                                     Do not install into a production trust store.",
+                                    bundle.group.name()
+                                ))
+                                .strong()
+                                .color(Color32::from_rgb(0xff, 0xcc, 0x66)),
+                            );
+                        });
+                    ui.add_space(6.0);
+                }
                 // --- verification banner ---
                 egui::Frame::group(ui.style()).show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
-                        ui.label(RichText::new(format!("DoD PKI bundle v{}", bundle.version)).strong());
+                        ui.label(
+                            RichText::new(format!("{} bundle v{}", bundle.group.name(), bundle.version))
+                                .strong(),
+                        );
                         ui.label(format!("· {} certificates ·", bundle.certs.len()));
                         if bundle.verify.manifest_signed {
                             ui.label(
@@ -289,9 +332,14 @@ impl eframe::App for App {
                                     .color(Color32::from_rgb(0x2e, 0x9e, 0x5b)),
                             );
                         }
+                        let anchor_word = if bundle.group == Group::Dod {
+                            "pinned roots"
+                        } else {
+                            "manifest-anchored roots"
+                        };
                         ui.label(
                             RichText::new(format!(
-                                "✔ all chains verify to pinned roots ({})",
+                                "✔ all chains verify to {anchor_word} ({})",
                                 bundle.verify.anchored_roots.join(", ")
                             ))
                             .color(Color32::from_rgb(0x2e, 0x9e, 0x5b)),

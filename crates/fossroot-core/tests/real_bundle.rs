@@ -4,11 +4,53 @@
 //! Point FOSSROOT_TEST_BUNDLE at a downloaded unclass-certificates_pkcs7_DoD.zip
 //! to run these; they are skipped otherwise.
 
+use fossroot_core::verify::anchor_certs;
 use fossroot_core::Bundle;
 
 fn fixture() -> Option<Vec<u8>> {
     let path = std::env::var_os("FOSSROOT_TEST_BUNDLE")?;
     Some(std::fs::read(path).expect("FOSSROOT_TEST_BUNDLE not readable"))
+}
+
+/// Point these at downloaded group zips to exercise the ECA/JITC/WCF paths.
+/// Skipped when unset.
+fn group_fixture(env: &str) -> Option<Vec<u8>> {
+    let path = std::env::var_os(env)?;
+    Some(std::fs::read(path).expect("group fixture not readable"))
+}
+
+#[test]
+fn embedded_anchors_match_pins() {
+    // anchor_certs() asserts each embedded root matches a pinned fingerprint;
+    // this test makes that build-integrity check part of the suite.
+    let anchors = anchor_certs();
+    assert_eq!(anchors.len(), 4, "expected 4 DoD root anchors");
+    assert!(anchors.iter().all(|c| c.is_self_issued));
+}
+
+#[test]
+fn verifies_all_groups() {
+    for (env, label, min) in [
+        ("FOSSROOT_TEST_BUNDLE_ECA", "ECA", 5),
+        ("FOSSROOT_TEST_BUNDLE_JITC", "JITC", 20),
+        ("FOSSROOT_TEST_BUNDLE_WCF", "WCF", 3),
+    ] {
+        let Some(raw) = group_fixture(env) else {
+            eprintln!("skipped {label}: set {env} to run");
+            continue;
+        };
+        let bundle = Bundle::from_zip_bytes(&raw, label)
+            .unwrap_or_else(|e| panic!("{label} bundle should verify: {e}"));
+        assert!(
+            bundle.certs.len() >= min,
+            "{label}: expected >= {min} certs, got {}",
+            bundle.certs.len()
+        );
+        assert!(
+            bundle.verify.manifest_signed,
+            "{label}: manifest must verify"
+        );
+    }
 }
 
 #[test]

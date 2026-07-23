@@ -13,8 +13,17 @@ use fossroot_core::{diff, Bundle, CertStatus, DiffReport};
                   distribution point and cryptographically verified against pinned DoD roots."
 )]
 struct Args {
+    /// Which DISA bundle group to operate on: dod, eca, jitc, or wcf
+    #[arg(long, global = true, default_value = "dod", value_name = "GROUP")]
+    group: String,
+
     #[command(subcommand)]
     command: Command,
+}
+
+fn parse_group(s: &str) -> Result<fossroot_core::Group, Box<dyn std::error::Error>> {
+    fossroot_core::Group::from_token(s)
+        .ok_or_else(|| format!("unknown group '{s}' (expected: dod, eca, jitc, wcf)").into())
 }
 
 #[derive(Subcommand)]
@@ -66,41 +75,50 @@ enum Command {
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-    match Args::parse().command {
+    let args = Args::parse();
+    let group = parse_group(&args.group)?;
+    match args.command {
         Command::Status {
             offline,
             json,
             verbose,
-        } => status(offline, json, verbose),
+        } => status(group, offline, json, verbose),
         Command::Install {
             machine,
             offline,
             prune,
             yes,
-        } => install(machine, offline, prune, yes),
+        } => install(group, machine, offline, prune, yes),
         Command::Remove {
             machine,
             offline,
             yes,
-        } => remove(machine, offline, yes),
-        Command::Export { out, offline } => export(out, offline),
+        } => remove(group, machine, offline, yes),
+        Command::Export { out, offline } => export(group, out, offline),
     }
 }
 
-fn load_bundle(offline: Option<std::path::PathBuf>) -> Result<Bundle, Box<dyn std::error::Error>> {
-    match offline {
+fn load_bundle(
+    group: fossroot_core::Group,
+    offline: Option<std::path::PathBuf>,
+) -> Result<Bundle, Box<dyn std::error::Error>> {
+    let bundle = match offline {
         Some(path) => {
             eprintln!("Loading bundle from {} ...", path.display());
-            Ok(Bundle::from_file(&path)?)
+            Bundle::from_file(&path)?
         }
         None => {
-            eprintln!(
-                "Fetching DoD bundle from {} ...",
-                fossroot_core::DOD_BUNDLE_URL
-            );
-            Ok(Bundle::fetch()?)
+            eprintln!("Fetching {} bundle from {} ...", group.name(), group.url());
+            Bundle::fetch_group(group)?
         }
+    };
+    if bundle.group.is_test_pki() {
+        eprintln!(
+            "WARNING: {} is a TEST PKI. Do not install it into a production trust store.",
+            bundle.group.name()
+        );
     }
+    Ok(bundle)
 }
 
 fn diff_location(
@@ -126,7 +144,8 @@ fn diff_location(
 
 fn print_verification(bundle: &Bundle) {
     println!(
-        "Bundle:    DoD PKI v{} ({} certificates)",
+        "Bundle:    {} v{} ({} certificates)",
+        bundle.group.name(),
         bundle.version,
         bundle.certs.len()
     );
@@ -143,25 +162,34 @@ fn print_verification(bundle: &Bundle) {
         }
         _ => println!("Manifest:  n/a (bare .p7b input — chain verification only)"),
     }
+    // For the DoD group the roots are pinned directly; for other groups the
+    // roots are anchored transitively by the DISA-signed manifest.
+    let anchor_desc = if bundle.group == fossroot_core::Group::Dod {
+        "pinned DoD roots"
+    } else {
+        "manifest-anchored roots"
+    };
     println!(
-        "Chains:    all {} certificates verify to pinned roots ({})",
+        "Chains:    all {} certificates verify to {anchor_desc} ({})",
         bundle.verify.chained_ok,
         bundle.verify.anchored_roots.join(", ")
     );
 }
 
 fn status(
+    group: fossroot_core::Group,
     offline: Option<std::path::PathBuf>,
     json: bool,
     verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let bundle = load_bundle(offline)?;
+    let bundle = load_bundle(group, offline)?;
     let user = diff_location(&bundle, Location::CurrentUser)?;
     let machine = diff_location(&bundle, Location::LocalMachine)?;
 
     if json {
         let out = serde_json::json!({
             "bundle": {
+                "group": bundle.group,
                 "version": bundle.version,
                 "source": bundle.source,
                 "zip_sha256": bundle.zip_sha256,
@@ -290,6 +318,7 @@ fn confirm(prompt: &str, yes: bool) -> bool {
 }
 
 fn install(
+    group: fossroot_core::Group,
     machine: bool,
     offline: Option<std::path::PathBuf>,
     prune: bool,
@@ -301,7 +330,7 @@ fn install(
         Location::CurrentUser
     };
     probe_write_or_explain(location)?;
-    let bundle = load_bundle(offline)?;
+    let bundle = load_bundle(group, offline)?;
     print_verification(&bundle);
     let report = diff_location(&bundle, location)?;
 
@@ -371,6 +400,7 @@ fn install(
 }
 
 fn remove(
+    group: fossroot_core::Group,
     machine: bool,
     offline: Option<std::path::PathBuf>,
     yes: bool,
@@ -381,7 +411,7 @@ fn remove(
         Location::CurrentUser
     };
     probe_write_or_explain(location)?;
-    let bundle = load_bundle(offline)?;
+    let bundle = load_bundle(group, offline)?;
     let report = diff_location(&bundle, location)?;
     let installed: Vec<_> = report
         .entries
@@ -425,10 +455,11 @@ fn remove(
 }
 
 fn export(
+    group: fossroot_core::Group,
     out: std::path::PathBuf,
     offline: Option<std::path::PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let bundle = load_bundle(offline)?;
+    let bundle = load_bundle(group, offline)?;
     print_verification(&bundle);
     std::fs::create_dir_all(&out)?;
     let mut chain = String::new();

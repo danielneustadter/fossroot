@@ -47,6 +47,42 @@ fn pinned_fingerprint(sha256: &[u8; 32]) -> Option<&'static str> {
         .map(|(name, _)| *name)
 }
 
+/// The DoD root CA certificates, embedded as verification **anchors** only.
+///
+/// These four public root certs let Fossroot verify a bundle's DISA-signed
+/// manifest even when the signing chain's root is not redelivered inside that
+/// particular bundle (the case for the ECA/JITC/WCF groups, whose manifests are
+/// signed by a DoD PKE credential chaining to a DoD root). Each embedded cert is
+/// checked against its pinned fingerprint at load, so a tampered anchor file
+/// fails the build's own invariant rather than silently widening trust.
+///
+/// This is the *only* certificate material Fossroot ships. It never bundles the
+/// intermediate/leaf certificates it installs — those always come live from DISA.
+const ANCHOR_DER: &[&[u8]] = &[
+    include_bytes!("anchors/dod_root_ca_3.cer"),
+    include_bytes!("anchors/dod_root_ca_4.cer"),
+    include_bytes!("anchors/dod_root_ca_5.cer"),
+    include_bytes!("anchors/dod_root_ca_6.cer"),
+];
+
+/// Parse the embedded anchors, asserting each matches a pinned fingerprint.
+/// Panics only if the shipped anchor files were corrupted — a build-integrity
+/// failure, caught by tests, never a runtime-input condition.
+pub fn anchor_certs() -> Vec<CertInfo> {
+    ANCHOR_DER
+        .iter()
+        .map(|der| {
+            let c = CertInfo::from_der(der).expect("embedded anchor is valid DER");
+            assert!(
+                pinned_fingerprint(&c.sha256).is_some(),
+                "embedded anchor {} does not match a pinned fingerprint",
+                c.display_name()
+            );
+            c
+        })
+        .collect()
+}
+
 /// Outcome of verifying a full bundle.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct VerifyReport {
@@ -62,23 +98,40 @@ pub struct VerifyReport {
 
 /// Verify that every certificate in `certs` chains, with valid signatures, to a
 /// pinned DoD root. Self-issued certs must themselves match a pin. Fails closed.
-pub fn verify_chains(certs: &[CertInfo]) -> Result<Vec<String>> {
-    verify_chains_with_pool(certs, certs)
+///
+/// Used for the bare-`.p7b` path, where there is no signed manifest to anchor the
+/// bundle — so trust must bottom out at a pinned root directly (DoD group only).
+pub fn verify_chains_pinned(certs: &[CertInfo]) -> Result<Vec<String>> {
+    verify_chains_with_pool(certs, certs, true)
 }
 
-/// Like [`verify_chains`], but issuers may also be found in `pool` (used for CMS
-/// signer chains, where intermediates can live in the bundle rather than the CMS).
-pub fn verify_chains_with_pool(certs: &[CertInfo], pool: &[CertInfo]) -> Result<Vec<String>> {
-    let mut anchored = Vec::new();
+/// Verify that every certificate chains, with valid signatures, to *some*
+/// self-issued root present in the bundle — internal cryptographic consistency,
+/// without requiring that root to be pinned.
+///
+/// Safe to use only once the bundle as a whole has been anchored some other way
+/// (i.e. a CMS manifest signed by a credential chaining to a pinned DoD root has
+/// vouched for the checksum of the certificate file). DISA signs every group's
+/// manifest — DoD, ECA, JITC, WCF — with a DoD PKE credential, so that single
+/// anchor transitively covers each group's own roots. Returns the root names.
+pub fn verify_chains_internal(certs: &[CertInfo]) -> Result<Vec<String>> {
+    verify_chains_with_pool(certs, certs, false)
+}
+
+/// Shared chain walker. `pool` supplies candidate issuers (for CMS signer chains,
+/// intermediates can live in the bundle rather than the CMS). When `require_pinned`
+/// is set, every terminal root must match a pinned DoD fingerprint.
+pub fn verify_chains_with_pool(
+    certs: &[CertInfo],
+    pool: &[CertInfo],
+    require_pinned: bool,
+) -> Result<Vec<String>> {
+    let mut roots = Vec::new();
     for cert in certs {
         if cert.is_self_issued {
             match pinned_fingerprint(&cert.sha256) {
-                Some(name) => {
-                    if !anchored.contains(&name.to_string()) {
-                        anchored.push(name.to_string());
-                    }
-                }
-                None => {
+                Some(name) => push_unique(&mut roots, name.to_string()),
+                None if require_pinned => {
                     return Err(Error::Verify(format!(
                         "self-issued certificate '{}' does not match any pinned DoD root \
                          (sha256 {})",
@@ -86,16 +139,26 @@ pub fn verify_chains_with_pool(certs: &[CertInfo], pool: &[CertInfo]) -> Result<
                         hex(&cert.sha256)
                     )))
                 }
+                None => push_unique(&mut roots, cert.display_name()),
             }
             continue;
         }
-        walk_to_pinned_root(cert, pool)?;
+        let root = walk_to_root(cert, pool, require_pinned)?;
+        push_unique(&mut roots, root);
     }
-    Ok(anchored)
+    Ok(roots)
 }
 
-/// Walk issuer links (verifying each signature) until a pinned root is reached.
-fn walk_to_pinned_root(leaf: &CertInfo, pool: &[CertInfo]) -> Result<()> {
+fn push_unique(v: &mut Vec<String>, s: String) {
+    if !v.contains(&s) {
+        v.push(s);
+    }
+}
+
+/// Walk issuer links (verifying each signature) until a self-issued root is
+/// reached; returns that root's display name. When `require_pinned`, the root
+/// must match a pin.
+fn walk_to_root(leaf: &CertInfo, pool: &[CertInfo], require_pinned: bool) -> Result<String> {
     let mut current = leaf;
     let mut hops = 0usize;
     loop {
@@ -117,14 +180,14 @@ fn walk_to_pinned_root(leaf: &CertInfo, pool: &[CertInfo]) -> Result<()> {
                 ))
             })?;
         if issuer.is_self_issued {
-            return match pinned_fingerprint(&issuer.sha256) {
-                Some(_) => Ok(()),
-                None => Err(Error::Verify(format!(
+            if require_pinned && pinned_fingerprint(&issuer.sha256).is_none() {
+                return Err(Error::Verify(format!(
                     "chain for '{}' terminates at unpinned root '{}'",
                     leaf.display_name(),
                     issuer.display_name()
-                ))),
-            };
+                )));
+            }
+            return Ok(issuer.display_name());
         }
         current = issuer;
     }
@@ -354,10 +417,14 @@ pub fn verify_manifest(cms_bytes: &[u8], extra_pool: &[CertInfo]) -> Result<Mani
         &signer_cert,
     )?;
 
-    // 6. The signer must chain to a pinned DoD root.
+    // 6. The signer must chain to a pinned DoD root. Draw candidate issuers from
+    // the CMS, the bundle, and the embedded DoD root anchors — the last ensures
+    // the chain can terminate at a pinned root even when that root is not
+    // redelivered in this group's bundle (ECA/JITC/WCF).
     let mut pool = cms_certs.clone();
     pool.extend_from_slice(extra_pool);
-    verify_chains_with_pool(std::slice::from_ref(&signer_cert), &pool)?;
+    pool.extend(anchor_certs());
+    verify_chains_with_pool(std::slice::from_ref(&signer_cert), &pool, true)?;
 
     // 7. Parse "hash  filename" lines.
     let text = String::from_utf8_lossy(&payload);

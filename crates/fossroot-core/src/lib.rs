@@ -14,7 +14,7 @@ pub mod diff;
 pub mod store;
 pub mod verify;
 
-pub use bundle::{Bundle, DOD_BUNDLE_URL};
+pub use bundle::{Bundle, Group, DOD_BUNDLE_URL};
 pub use certs::CertInfo;
 pub use diff::{CertStatus, DiffEntry, DiffReport};
 pub use store::{InstalledCert, Location, StoreKind, SystemStore, TrustStore};
