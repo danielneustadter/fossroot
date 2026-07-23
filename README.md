@@ -10,6 +10,23 @@ A modern, auditable replacement for DISA's InstallRoot utility.
 > "InstallRoot" is DISA's product; Fossroot is an independent open-source
 > reimplementation of the same end-user need.
 
+## The suite
+
+Fossroot is growing into a small suite of CAC/PKI tools that share one core and
+one local native agent:
+
+| Component | What it is | Status |
+|---|---|---|
+| `fossroot` | The trust-store manager (this README) | Shipped |
+| `fossroot-core` | Shared Rust engine: fetch, verify, diff, trust stores | Shipped |
+| `fossroot-agent` | Native-messaging host bridging the browser to the local machine | Spike |
+| [`extension/`](extension/) | Chrome/Edge extension: trust status in the browser | Spike |
+
+The agent is the keystone: browsers deliberately sandbox away from smart cards
+and the OS trust store, so the planned browser-session helper and in-browser CAC
+document signing both ride on this bridge rather than trying (and failing) to do
+it in pure JavaScript.
+
 ## What it does
 
 Accessing DoW websites (OWA, myPay, MilConnect, …) from a personal computer

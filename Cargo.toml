@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/fossroot-core", "crates/fossroot"]
+members = ["crates/fossroot-core", "crates/fossroot", "crates/fossroot-agent"]
 
 [workspace.package]
 version = "0.1.0"
