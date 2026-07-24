@@ -12,3 +12,16 @@ lopdf = "0.44"
 sha2 = "0.10"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
+cms = { version = "0.2", features = ["builder"] }
+x509-cert = "0.2"
+der = { version = "0.7", features = ["alloc", "oid"] }
+spki = "0.7"
+const-oid = { version = "0.9", features = ["db"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+
+[dev-dependencies]
+# Cardless test signer: ephemeral RSA key, self-signed cert.
+rsa = { version = "0.9", features = ["sha2"] }
+rand = "0.8"
+x509-cert = { version = "0.2", features = ["builder"] }
+p256 = { version = "0.13", features = ["ecdsa"] }
