@@ -3,7 +3,17 @@
 // invoke consent-gated agent actions (the agent shows a native OS dialog).
 
 const HOST = "com.fossroot.agent";
-const BROWSER = /Edg\//.test(navigator.userAgent) ? "edge" : "chrome";
+
+// Brave masks its user-agent as Chrome, so sniffing the UA isn't enough — it
+// exposes navigator.brave.isBrave(). Edge keeps the "Edg/" token. Resolved once
+// at startup into `browser`, which the action buttons pass to the agent.
+let browser = "chrome";
+async function detectBrowser() {
+  if (navigator.brave && (await navigator.brave.isBrave().catch(() => false))) {
+    return "brave";
+  }
+  return /Edg\//.test(navigator.userAgent) ? "edge" : "chrome";
+}
 
 const $ = (id) => document.getElementById(id);
 chrome.runtime.sendMessage("clear-badge");
@@ -88,7 +98,7 @@ async function currentOrigin() {
 $("btn-reset").addEventListener("click", async () => {
   $("result").textContent = "Waiting for confirmation…";
   try {
-    showResult(await call({ method: "relaunch_browser", browser: BROWSER }));
+    showResult(await call({ method: "relaunch_browser", browser: browser }));
   } catch (e) {
     showResult({ ok: false, detail: String(e.message || e) });
   }
@@ -102,13 +112,14 @@ $("btn-autoselect").addEventListener("click", async () => {
   }
   $("result").textContent = "Waiting for confirmation…";
   try {
-    showResult(await call({ method: "apply_autoselect", browser: BROWSER, origins: [origin] }));
+    showResult(await call({ method: "apply_autoselect", browser: browser, origins: [origin] }));
   } catch (e) {
     showResult({ ok: false, detail: String(e.message || e) });
   }
 });
 
 (async () => {
+  browser = await detectBrowser();
   try {
     await call({ method: "ping" });
     renderCard(await call({ method: "sc_status" }));

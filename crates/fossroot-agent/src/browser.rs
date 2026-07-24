@@ -16,6 +16,7 @@ use serde::Serialize;
 pub enum Browser {
     Chrome,
     Edge,
+    Brave,
 }
 
 impl Browser {
@@ -23,6 +24,7 @@ impl Browser {
         match s.to_lowercase().as_str() {
             "chrome" => Some(Browser::Chrome),
             "edge" => Some(Browser::Edge),
+            "brave" => Some(Browser::Brave),
             _ => None,
         }
     }
@@ -32,6 +34,7 @@ impl Browser {
         match self {
             Browser::Chrome => "Google Chrome",
             Browser::Edge => "Microsoft Edge",
+            Browser::Brave => "Brave",
         }
     }
 
@@ -40,6 +43,7 @@ impl Browser {
         match self {
             Browser::Chrome => "chrome.exe",
             Browser::Edge => "msedge.exe",
+            Browser::Brave => "brave.exe",
         }
     }
 
@@ -49,6 +53,7 @@ impl Browser {
         match self {
             Browser::Chrome => r"Software\Policies\Google\Chrome",
             Browser::Edge => r"Software\Policies\Microsoft\Edge",
+            Browser::Brave => r"Software\Policies\BraveSoftware\Brave-Browser",
         }
     }
 }

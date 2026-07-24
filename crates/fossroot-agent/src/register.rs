@@ -21,15 +21,17 @@ pub const DEFAULT_EXTENSION_ID: &str = "mfgimcojmphkmnmmpbiagoidoiccpegm";
 pub enum Browser {
     Chrome,
     Edge,
+    Brave,
 }
 
 impl Browser {
-    pub const ALL: [Browser; 2] = [Browser::Chrome, Browser::Edge];
+    pub const ALL: [Browser; 3] = [Browser::Chrome, Browser::Edge, Browser::Brave];
 
     fn label(self) -> &'static str {
         match self {
             Browser::Chrome => "Chrome",
             Browser::Edge => "Edge",
+            Browser::Brave => "Brave",
         }
     }
 }
@@ -96,6 +98,9 @@ fn registry_subkey(browser: Browser) -> &'static str {
     match browser {
         Browser::Chrome => r"Software\Google\Chrome\NativeMessagingHosts\com.fossroot.agent",
         Browser::Edge => r"Software\Microsoft\Edge\NativeMessagingHosts\com.fossroot.agent",
+        Browser::Brave => {
+            r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.fossroot.agent"
+        }
     }
 }
 
@@ -131,6 +136,9 @@ fn hosts_dirs(browser: Browser) -> Vec<PathBuf> {
     let roots: &[&str] = match browser {
         Browser::Chrome => &["Library/Application Support/Google/Chrome/NativeMessagingHosts"],
         Browser::Edge => &["Library/Application Support/Microsoft Edge/NativeMessagingHosts"],
+        Browser::Brave => {
+            &["Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"]
+        }
     };
     #[cfg(all(unix, not(target_os = "macos")))]
     let roots: &[&str] = match browser {
@@ -139,6 +147,7 @@ fn hosts_dirs(browser: Browser) -> Vec<PathBuf> {
             ".config/chromium/NativeMessagingHosts",
         ],
         Browser::Edge => &[".config/microsoft-edge/NativeMessagingHosts"],
+        Browser::Brave => &[".config/BraveSoftware/Brave-Browser/NativeMessagingHosts"],
     };
     roots.iter().map(|r| home.join(r)).collect()
 }
