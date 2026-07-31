@@ -1,11 +1,12 @@
-//! Windows CurrentUser store add/remove roundtrip.
+//! CurrentUser intermediate-CA store add/remove roundtrip.
 //!
 //! Mutates the current user's CA (intermediate) store — never ROOT, so no
-//! Windows security prompt is involved — and cleans up after itself.
+//! Windows security prompt or macOS trust-settings change is involved — and
+//! cleans up after itself.
 //! Gated behind FOSSROOT_STORE_TEST=1 in addition to the bundle fixture,
 //! so plain `cargo test` stays side-effect free.
 
-#![cfg(windows)]
+#![cfg(any(windows, target_os = "macos"))]
 
 use fossroot_core::store::{platform, Location, StoreKind, SystemStore, TrustStore};
 use fossroot_core::Bundle;

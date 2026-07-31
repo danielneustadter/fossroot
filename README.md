@@ -102,7 +102,7 @@ Requires stable Rust. The result is a single self-contained executable.
 |---|---|---|
 | Windows | CryptoAPI (`ROOT`/`CA`, user & machine) | Implemented, runtime-verified |
 | Linux | `update-ca-certificates` (Debian) / `update-ca-trust` (RHEL) | Implemented, CI-compiled; runtime pending hardware test |
-| macOS | Security.framework keychain + trust settings | Implemented, CI-compiled; runtime pending hardware test |
+| macOS | Security.framework keychain + trust settings | Implemented, runtime-verified (macOS 26, Apple Silicon) |
 
 All three build, test, clippy, and fmt on every push via the CI matrix.
 
@@ -110,7 +110,7 @@ All three build, test, clippy, and fmt on every push via the CI matrix.
 
 - Firefox/Thunderbird NSS profile support
 - Java keystore support
-- Runtime validation of the Linux/macOS backends on real hardware
+- Runtime validation of the Linux backend on real hardware
 - Code signing (Windows Authenticode/Azure Trusted Signing, macOS notarization)
   and package-manager distribution (winget, Homebrew tap)
 
