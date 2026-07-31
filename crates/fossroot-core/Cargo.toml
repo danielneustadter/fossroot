@@ -32,6 +32,9 @@ windows = { version = "0.58", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3"
+security-framework-sys = "2"
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
 
 [dev-dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }

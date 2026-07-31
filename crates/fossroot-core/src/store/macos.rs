@@ -1,24 +1,51 @@
 //! macOS trust-store backend (keychain + trust settings).
 //!
 //! On macOS a CA certificate is trusted by being present in a keychain *and*
-//! having explicit trust settings. Fossroot uses the login keychain for the
-//! per-user case ([`Location::CurrentUser`]) and the system keychain for the
-//! machine-wide case ([`Location::LocalMachine`], which requires admin).
+//! (for roots) having explicit trust settings. Fossroot uses the login keychain
+//! for the per-user case ([`Location::CurrentUser`]) and the system keychain
+//! for the machine-wide case ([`Location::LocalMachine`], which requires admin).
 //!
-//! Both the ROOT and CA logical stores map to the same keychain; a listed
-//! certificate is classified as ROOT or CA by whether it is self-issued, so the
-//! shared [`crate::diff`] logic still works. Root anchors additionally get
-//! explicit "trust as root" settings applied.
+//! Presence in the keychain is what counts as "installed", matching the
+//! Windows and Linux backends. Both logical stores map to the same keychain; a
+//! listed certificate is classified as ROOT or CA by whether it is self-issued,
+//! so the shared [`crate::diff`] logic still works. Roots additionally carry
+//! explicit "trust as root" settings, applied at add time and stripped again at
+//! remove time; intermediates are trusted transitively once their root is and
+//! carry no settings of their own.
+//!
+//! Enumeration and removal therefore operate on the *keychain itself*
+//! (`SecItemCopyMatching` scoped to the target keychain), never on
+//! `SecTrustSettingsCopyCertificates`. Trust-settings enumeration only yields
+//! certificates that carry explicit settings — which intermediates never have —
+//! and returns detached `SecCertificateRef`s that `SecItemDelete` rejects with
+//! "the specified item is no longer valid". A keychain-scoped item search
+//! returns live keychain items that enumerate and delete correctly.
 
+use core_foundation::base::TCFType;
+use core_foundation_sys::base::OSStatus;
 use security_framework::certificate::SecCertificate;
+use security_framework::item::{ItemClass, ItemSearchOptions, Limit, Reference, SearchResult};
 use security_framework::os::macos::keychain::SecKeychain;
 use security_framework::trust_settings::{Domain, TrustSettings};
+use security_framework_sys::base::{errSecItemNotFound, SecCertificateRef};
+use security_framework_sys::trust_settings::SecTrustSettingsDomain;
 
 use crate::certs::CertInfo;
 use crate::store::{InstalledCert, Location, StoreKind, SystemStore, TrustStore};
 use crate::{Error, Result};
 
 pub struct MacStore;
+
+// `SecTrustSettingsRemoveTrustSettings` has been public Security.framework API
+// since macOS 10.3 but is not bound by security-framework-sys; declare it here
+// so removal of a root also clears its trust-settings residue. (The Windows
+// backend likewise binds platform FFI directly where safe wrappers fall short.)
+extern "C" {
+    fn SecTrustSettingsRemoveTrustSettings(
+        certificate: SecCertificateRef,
+        domain: SecTrustSettingsDomain,
+    ) -> OSStatus;
+}
 
 fn keychain_for(location: Location) -> Result<SecKeychain> {
     match location {
@@ -37,17 +64,35 @@ fn domain_for(location: Location) -> Domain {
     }
 }
 
+/// Every certificate item in `keychain`, as live keychain-backed references.
+///
+/// `SecItemCopyMatching` reports an empty result set as `errSecItemNotFound`;
+/// for enumeration that means "no certificates", not a failure.
+fn keychain_certificates(keychain: &SecKeychain) -> Result<Vec<SecCertificate>> {
+    let mut opts = ItemSearchOptions::new();
+    opts.keychains(std::slice::from_ref(keychain));
+    opts.class(ItemClass::certificate());
+    opts.load_refs(true);
+    opts.limit(Limit::All);
+    let results = match opts.search() {
+        Ok(results) => results,
+        Err(e) if e.code() == errSecItemNotFound => return Ok(Vec::new()),
+        Err(e) => return Err(Error::Store(format!("search keychain: {e}"))),
+    };
+    Ok(results
+        .into_iter()
+        .filter_map(|r| match r {
+            SearchResult::Ref(Reference::Certificate(c)) => Some(c),
+            _ => None,
+        })
+        .collect())
+}
+
 impl TrustStore for MacStore {
     fn list(&self, store: SystemStore) -> Result<Vec<InstalledCert>> {
-        // Enumerate certs that carry trust settings in this domain — i.e. the
-        // ones a user (or Fossroot) has explicitly trusted.
-        let settings = TrustSettings::new(domain_for(store.location));
-        let iter = match settings.iter() {
-            Ok(i) => i,
-            Err(_) => return Ok(Vec::new()),
-        };
+        let keychain = keychain_for(store.location)?;
         let mut out = Vec::new();
-        for cert in iter {
+        for cert in keychain_certificates(&keychain)? {
             let der = cert.to_der();
             if let Ok(info) = CertInfo::from_der(&der) {
                 let matches = match store.kind {
@@ -91,20 +136,32 @@ impl TrustStore for MacStore {
     }
 
     fn remove_by_sha1(&self, store: SystemStore, sha1: &[u8; 20]) -> Result<bool> {
-        let settings = TrustSettings::new(domain_for(store.location));
-        let iter = match settings.iter() {
-            Ok(i) => i,
-            Err(_) => return Ok(false),
-        };
-        for cert in iter {
+        let keychain = keychain_for(store.location)?;
+        for cert in keychain_certificates(&keychain)? {
             let der = cert.to_der();
-            if let Ok(info) = CertInfo::from_der(&der) {
-                if &info.sha1 == sha1 {
-                    cert.delete()
-                        .map_err(|e| Error::Store(format!("delete cert: {e}")))?;
-                    return Ok(true);
-                }
+            let Ok(info) = CertInfo::from_der(&der) else {
+                continue;
+            };
+            if &info.sha1 != sha1 {
+                continue;
             }
+            // Strip explicit trust settings first so removal leaves no residue
+            // in the trust-settings domain. Intermediates have none, so
+            // errSecItemNotFound is expected and fine.
+            let status = unsafe {
+                SecTrustSettingsRemoveTrustSettings(
+                    cert.as_concrete_TypeRef(),
+                    SecTrustSettingsDomain::from(domain_for(store.location)),
+                )
+            };
+            if status != 0 && status != errSecItemNotFound {
+                return Err(Error::Store(format!(
+                    "remove trust settings: OSStatus {status}"
+                )));
+            }
+            cert.delete()
+                .map_err(|e| Error::Store(format!("delete cert: {e}")))?;
+            return Ok(true);
         }
         Ok(false)
     }
