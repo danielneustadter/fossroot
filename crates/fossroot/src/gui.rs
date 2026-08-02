@@ -12,7 +12,8 @@ pub fn run() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1020.0, 680.0])
-            .with_min_inner_size([760.0, 500.0]),
+            .with_min_inner_size([760.0, 500.0])
+            .with_icon(window_icon()),
         ..Default::default()
     };
     eframe::run_native(
@@ -23,6 +24,19 @@ pub fn run() -> eframe::Result {
             Ok(Box::new(App::new()))
         }),
     )
+}
+
+fn window_icon() -> egui::IconData {
+    let png = include_bytes!("../../../assets/icon/fossroot-256.png");
+    let img = image::load_from_memory(png)
+        .expect("embedded icon is a valid PNG")
+        .into_rgba8();
+    let (width, height) = img.dimensions();
+    egui::IconData {
+        rgba: img.into_raw(),
+        width,
+        height,
+    }
 }
 
 struct Data {

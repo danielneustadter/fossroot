@@ -3,10 +3,22 @@ use fossroot_core::certs::format_unix;
 use fossroot_core::store::{platform, Location, StoreKind, SystemStore, TrustStore};
 use fossroot_core::{diff, Bundle, CertStatus, DiffReport};
 
+/// `0.1.0 (abc123, x86_64-unknown-linux-gnu)` — hash and target are injected
+/// by build.rs; tarball builds without git report "unknown".
+const LONG_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (",
+    env!("FOSSROOT_GIT_HASH"),
+    ", ",
+    env!("FOSSROOT_TARGET"),
+    ")"
+);
+
 #[derive(Parser)]
 #[command(
     name = "fossroot",
     version,
+    long_version = LONG_VERSION,
     about = "Open-source manager for DoD PKI CA certificate trust stores",
     after_help = "Running with no arguments launches the GUI.\n\
                   Fossroot never ships certificates: bundles are fetched from DISA's official\n\
@@ -72,6 +84,20 @@ enum Command {
         #[arg(long, value_name = "FILE")]
         offline: Option<std::path::PathBuf>,
     },
+    /// Print a shell completion script to stdout
+    ///
+    /// e.g. `fossroot completions bash > /etc/bash_completion.d/fossroot`
+    Completions {
+        /// bash, zsh, fish, powershell, or elvish
+        shell: clap_complete::Shell,
+    },
+    /// Write roff man pages into a directory (for packagers)
+    #[command(hide = true)]
+    Man {
+        /// Output directory (created if needed)
+        #[arg(long, value_name = "DIR", default_value = "man")]
+        out: std::path::PathBuf,
+    },
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -95,7 +121,34 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             yes,
         } => remove(group, machine, offline, yes),
         Command::Export { out, offline } => export(group, out, offline),
+        Command::Completions { shell } => {
+            let mut cmd = <Args as clap::CommandFactory>::command();
+            clap_complete::generate(shell, &mut cmd, "fossroot", &mut std::io::stdout());
+            Ok(())
+        }
+        Command::Man { out } => write_man_pages(&out),
     }
+}
+
+/// One page per visible subcommand plus the main page, named the way
+/// `mandb` expects (fossroot.1, fossroot-status.1, ...).
+fn write_man_pages(out: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    use clap::CommandFactory;
+    std::fs::create_dir_all(out)?;
+    let cmd = Args::command();
+    let mut buf = Vec::new();
+    clap_mangen::Man::new(cmd.clone()).render(&mut buf)?;
+    std::fs::write(out.join("fossroot.1"), &buf)?;
+    for sub in cmd.get_subcommands().filter(|s| !s.is_hide_set()) {
+        // clap's builder wants 'static names; leaking a handful of short
+        // strings in this one-shot generator command is fine.
+        let name: &'static str = Box::leak(format!("fossroot-{}", sub.get_name()).into_boxed_str());
+        let mut buf = Vec::new();
+        clap_mangen::Man::new(sub.clone().name(name)).render(&mut buf)?;
+        std::fs::write(out.join(format!("{name}.1")), &buf)?;
+    }
+    eprintln!("wrote man pages to {}", out.display());
+    Ok(())
 }
 
 fn load_bundle(

@@ -10,10 +10,17 @@ authors.workspace = true
 [dependencies]
 fossroot-core = { path = "../fossroot-core" }
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
+clap_mangen = "0.2"
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 eframe = "0.29"
 egui_extras = "0.29"
+# Decodes the embedded window icon only; keep it minimal.
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
