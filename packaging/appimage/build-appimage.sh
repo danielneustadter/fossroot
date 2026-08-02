@@ -50,7 +50,7 @@ cp "$repo/assets/icon/fossroot-256.png" "$appdir/$appid.png"
 ln -sf "$appid.png" "$appdir/.DirIcon"
 
 # appimagetool: use $APPIMAGETOOL, then PATH, then download the pinned
-# release-13 build (immutable tag on the official AppImage project).
+# 1.9.1 release from the official AppImage project.
 tool="${APPIMAGETOOL:-}"
 if [[ -z "$tool" ]] && command -v appimagetool >/dev/null 2>&1; then
   tool="$(command -v appimagetool)"
@@ -59,7 +59,7 @@ if [[ -z "$tool" ]]; then
   tool="$out/appimagetool-$arch.AppImage"
   if [[ ! -x "$tool" ]]; then
     curl -fsSL -o "$tool" \
-      "https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-$arch.AppImage"
+      "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-$arch.AppImage"
     chmod +x "$tool"
   fi
 fi
