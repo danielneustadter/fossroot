@@ -1,0 +1,34 @@
+# Snap scaffold — not yet published to the Snap Store.
+#
+# Fossroot writes the system trust store, which strict confinement cannot do,
+# so this snap uses classic confinement. Classic snaps require a manual
+# review/approval by the Snap Store team before they can be published
+# (https://snapcraft.io/docs/classic-confinement), which is why this remains a
+# scaffold until that process is worth starting. Build locally with:
+#   snapcraft --destructive-mode   (or just `snapcraft` with LXD available)
+name: fossroot
+base: core24
+adopt-info: fossroot
+summary: Manage DoD PKI CA certificate trust stores
+description: |
+  Open-source, single-binary manager for DoD PKI CA certificate trust
+  stores — a modern, auditable replacement for DISA's InstallRoot utility.
+  Bundles are fetched live from DISA's official distribution point and
+  cryptographically verified against DoD root CAs pinned in the source code
+  before anything is installed. Unofficial community tool.
+grade: devel
+confinement: classic
+
+parts:
+  fossroot:
+    plugin: rust
+    source: .
+    build-packages:
+      - git
+    override-pull: |
+      craftctl default
+      craftctl set version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)+git$(git rev-parse --short HEAD)"
+
+apps:
+  fossroot:
+    command: bin/fossroot

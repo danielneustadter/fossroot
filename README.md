@@ -69,6 +69,23 @@ this one. Fossroot's answer:
 4. **Single portable binary** — no installer, no services, no telemetry, no
    config files. Delete the exe and it's gone.
 
+## Install
+
+| Platform | How |
+|---|---|
+| **Linux (any distro)** | Download the **AppImage** from [Releases](https://github.com/danielneustadter/fossroot/releases), `chmod +x`, run. |
+| Debian / Ubuntu | `sudo apt install ./fossroot_*.deb` from Releases |
+| Fedora / RHEL | `sudo dnf install ./fossroot-*.rpm` from Releases |
+| Arch | `fossroot-git` PKGBUILD in [`packaging/aur/`](packaging/aur/) (`makepkg -si`) |
+| Nix | `nix run github:danielneustadter/fossroot` |
+| Windows | `fossroot.exe` from [Releases](https://github.com/danielneustadter/fossroot/releases) (SHA-256 alongside) |
+| macOS | `cargo build --release` for now; Homebrew tap planned |
+
+Verify checksums against the `SHA256SUMS.linux` / `.sha256` files attached to
+each release. Snap, Flatpak, and Gentoo are scaffolded in
+[`packaging/`](packaging/) — status and caveats in
+[docs/packaging.md](docs/packaging.md).
+
 ## Usage
 
 ```text
@@ -111,10 +128,12 @@ All three build, test, clippy, and fmt on every push via the CI matrix.
 - Firefox/Thunderbird NSS profile support
 - Java keystore support
 - Runtime validation of the Linux backend on real hardware
+- Publish the scaffolded packages: AUR, nixpkgs, Snap (classic review), Gentoo GURU
 - Code signing (Windows Authenticode/Azure Trusted Signing, macOS notarization)
-  and package-manager distribution (winget, Homebrew tap)
+  and winget / Homebrew tap
 
-Done: ✅ ECA / JITC / WCF bundle groups · ✅ macOS & Linux trust-store backends.
+Done: ✅ ECA / JITC / WCF bundle groups · ✅ macOS & Linux trust-store backends ·
+✅ Linux packaging (AppImage, deb, rpm in CI + release artifacts; Nix flake).
 
 ## License
 

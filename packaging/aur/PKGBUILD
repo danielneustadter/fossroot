@@ -1,0 +1,74 @@
+# Maintainer: Daniel Neustadter <daniel.neustadter@vazkeft.net>
+#
+# fossroot-git — builds from the main branch. A fixed-version `fossroot`
+# PKGBUILD will follow with the first tagged release that contains the
+# packaging/ tree; until then the VCS package is the honest option.
+# Not yet published to the AUR.
+
+pkgname=fossroot-git
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc="Open-source manager for DoD PKI CA certificate trust stores (DISA InstallRoot replacement)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/danielneustadter/fossroot"
+license=('MIT OR Apache-2.0')
+depends=('gcc-libs' 'glibc' 'ca-certificates')
+optdepends=('libx11: GUI under X11 sessions'
+            'wayland: GUI under Wayland sessions')
+makedepends=('cargo' 'git')
+provides=('fossroot')
+conflicts=('fossroot')
+source=("$pkgname::git+https://github.com/danielneustadter/fossroot.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  printf "%s.r%s.g%s" \
+    "$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" \
+    "$(git rev-list --count HEAD)" \
+    "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release -p fossroot
+  # Self-generated packager assets.
+  target/release/fossroot completions bash >target/fossroot.bash
+  target/release/fossroot completions zsh >target/_fossroot
+  target/release/fossroot completions fish >target/fossroot.fish
+  target/release/fossroot man --out target/man
+}
+
+package() {
+  cd "$pkgname"
+  install -Dm755 target/release/fossroot "$pkgdir/usr/bin/fossroot"
+
+  install -Dm644 packaging/linux/com.fossroot.Fossroot.desktop \
+    -t "$pkgdir/usr/share/applications"
+  install -Dm644 packaging/linux/com.fossroot.Fossroot.metainfo.xml \
+    -t "$pkgdir/usr/share/metainfo"
+  install -Dm644 assets/icon/fossroot.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/com.fossroot.Fossroot.svg"
+  local s
+  for s in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "assets/icon/fossroot-$s.png" \
+      "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/com.fossroot.Fossroot.png"
+  done
+
+  install -Dm644 target/fossroot.bash \
+    "$pkgdir/usr/share/bash-completion/completions/fossroot"
+  install -Dm644 target/_fossroot "$pkgdir/usr/share/zsh/site-functions/_fossroot"
+  install -Dm644 target/fossroot.fish \
+    "$pkgdir/usr/share/fish/vendor_completions.d/fossroot.fish"
+  install -Dm644 target/man/*.1 -t "$pkgdir/usr/share/man/man1"
+
+  install -Dm644 LICENSE-MIT LICENSE-APACHE -t "$pkgdir/usr/share/licenses/$pkgname"
+}

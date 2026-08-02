@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.fossroot.Fossroot</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>Fossroot</name>
+  <summary>Manage DoD PKI CA certificate trust stores</summary>
+  <description>
+    <p>
+      Fossroot is an open-source, single-binary manager for DoD PKI CA
+      certificate trust stores — a modern, auditable replacement for DISA's
+      Windows-only InstallRoot utility. Accessing DoD websites from a personal
+      computer requires the DoD PKI root and intermediate CA certificates in
+      the machine's trust store; Fossroot installs, audits, and removes them.
+    </p>
+    <p>
+      Fossroot never ships certificates of its own: bundles are fetched live
+      from DISA's official distribution point and cryptographically verified —
+      the DISA-signed manifest is checked back to DoD root CAs pinned in the
+      source code, and every certificate must chain to a pinned root or the
+      bundle is rejected. It shows a full diff before any change and uninstalls
+      completely.
+    </p>
+    <p>
+      Fossroot is an unofficial community tool, not affiliated with or endorsed
+      by any government agency.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.fossroot.Fossroot.desktop</launchable>
+  <provides>
+    <binary>fossroot</binary>
+  </provides>
+  <url type="homepage">https://fossroot.com</url>
+  <url type="bugtracker">https://github.com/danielneustadter/fossroot/issues</url>
+  <url type="vcs-browser">https://github.com/danielneustadter/fossroot</url>
+  <developer id="com.fossroot">
+    <name>Daniel Neustadter</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>System</category>
+    <category>Security</category>
+  </categories>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/danielneustadter/fossroot/main/docs/screenshot-main.png</image>
+      <caption>Verification report and trust-store diff before any change</caption>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.1.0" date="2026-07-23"/>
+  </releases>
+</component>

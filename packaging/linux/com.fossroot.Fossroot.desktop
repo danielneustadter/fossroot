@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Fossroot
+GenericName=DoD PKI Trust Store Manager
+Comment=Install and manage DoD PKI CA certificates
+Exec=fossroot
+Icon=com.fossroot.Fossroot
+Terminal=false
+Categories=System;Security;
+Keywords=DoD;PKI;CAC;certificate;certificates;trust;DISA;InstallRoot;
+StartupWMClass=fossroot

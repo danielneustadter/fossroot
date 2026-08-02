@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,4 +25,42 @@ jobs:
           files: |
             target/release/fossroot.exe
             fossroot.exe.sha256
+          generate_release_notes: true
+
+  # ubuntu-22.04 keeps the glibc floor low for the AppImage.
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb,cargo-generate-rpm
+      - run: cargo build --release -p fossroot
+      - name: Generate completions and man pages
+        run: |
+          mkdir -p target/gen/completions target/gen/man
+          target/release/fossroot completions bash > target/gen/completions/fossroot.bash
+          target/release/fossroot completions zsh  > target/gen/completions/_fossroot
+          target/release/fossroot completions fish > target/gen/completions/fossroot.fish
+          target/release/fossroot man --out target/gen/man
+      - name: Build AppImage, deb, rpm
+        run: |
+          bash packaging/appimage/build-appimage.sh
+          cargo deb -p fossroot --no-build --no-strip
+          cargo generate-rpm -p crates/fossroot
+      - name: Compute SHA-256s
+        run: |
+          for f in dist/Fossroot-*.AppImage target/debian/*.deb target/generate-rpm/*.rpm; do
+            (cd "$(dirname "$f")" && sha256sum "$(basename "$f")")
+          done > dist/SHA256SUMS.linux
+          cat dist/SHA256SUMS.linux
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Fossroot-*.AppImage
+            target/debian/*.deb
+            target/generate-rpm/*.rpm
+            dist/SHA256SUMS.linux
           generate_release_notes: true

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>daniel.neustadter@vazkeft.net</email>
+    <name>Daniel Neustadter</name>
+  </maintainer>
+  <upstream>
+    <remote-id type="github">danielneustadter/fossroot</remote-id>
+    <bugs-to>https://github.com/danielneustadter/fossroot/issues</bugs-to>
+  </upstream>
+</pkgmetadata>

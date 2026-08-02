@@ -19,6 +19,70 @@ egui_extras = "0.29"
 # Decodes the embedded window icon only; keep it minimal.
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+# --- Linux packaging ---------------------------------------------------------
+# deb:  cargo deb -p fossroot            (CI: .github/workflows/package.yml)
+# rpm:  cargo generate-rpm -p crates/fossroot   (run from the workspace root)
+# Completions and man pages are emitted by the binary itself in CI
+# (`fossroot completions <shell>`, `fossroot man`) into target/gen/ first.
+
+[package.metadata.deb]
+maintainer = "Daniel Neustadter <daniel.neustadter@vazkeft.net>"
+copyright = "Daniel Neustadter"
+license-file = ["../../LICENSE-MIT", "0"]
+extended-description = """\
+Open-source, single-binary manager for DoD PKI CA certificate trust stores —
+a modern, auditable replacement for DISA's InstallRoot utility. Bundles are
+fetched live from DISA's official distribution point and cryptographically
+verified against DoD root CAs pinned in the source code before anything is
+installed. Unofficial community tool."""
+section = "utils"
+priority = "optional"
+# update-ca-certificates comes from ca-certificates on Debian/Ubuntu.
+depends = "$auto, ca-certificates"
+assets = [
+    ["target/release/fossroot", "usr/bin/", "755"],
+    ["../../packaging/linux/com.fossroot.Fossroot.desktop", "usr/share/applications/", "644"],
+    ["../../packaging/linux/com.fossroot.Fossroot.metainfo.xml", "usr/share/metainfo/", "644"],
+    ["../../assets/icon/fossroot.svg", "usr/share/icons/hicolor/scalable/apps/com.fossroot.Fossroot.svg", "644"],
+    ["../../assets/icon/fossroot-16.png", "usr/share/icons/hicolor/16x16/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-24.png", "usr/share/icons/hicolor/24x24/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-32.png", "usr/share/icons/hicolor/32x32/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-48.png", "usr/share/icons/hicolor/48x48/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-64.png", "usr/share/icons/hicolor/64x64/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-128.png", "usr/share/icons/hicolor/128x128/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-256.png", "usr/share/icons/hicolor/256x256/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../assets/icon/fossroot-512.png", "usr/share/icons/hicolor/512x512/apps/com.fossroot.Fossroot.png", "644"],
+    ["../../target/gen/completions/fossroot.bash", "usr/share/bash-completion/completions/fossroot", "644"],
+    ["../../target/gen/completions/_fossroot", "usr/share/zsh/vendor-completions/", "644"],
+    ["../../target/gen/completions/fossroot.fish", "usr/share/fish/vendor_completions.d/", "644"],
+    ["../../target/gen/man/*.1", "usr/share/man/man1/", "644"],
+]
+
+[package.metadata.generate-rpm]
+# Paths resolve from the invocation directory: run from the workspace root.
+license = "MIT OR Apache-2.0"
+summary = "Manager for DoD PKI CA certificate trust stores"
+assets = [
+    { source = "target/release/fossroot", dest = "/usr/bin/fossroot", mode = "755" },
+    { source = "packaging/linux/com.fossroot.Fossroot.desktop", dest = "/usr/share/applications/com.fossroot.Fossroot.desktop", mode = "644" },
+    { source = "packaging/linux/com.fossroot.Fossroot.metainfo.xml", dest = "/usr/share/metainfo/com.fossroot.Fossroot.metainfo.xml", mode = "644" },
+    { source = "assets/icon/fossroot.svg", dest = "/usr/share/icons/hicolor/scalable/apps/com.fossroot.Fossroot.svg", mode = "644" },
+    { source = "assets/icon/fossroot-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/com.fossroot.Fossroot.png", mode = "644" },
+    { source = "target/gen/completions/fossroot.bash", dest = "/usr/share/bash-completion/completions/fossroot", mode = "644" },
+    { source = "target/gen/completions/_fossroot", dest = "/usr/share/zsh/site-functions/_fossroot", mode = "644" },
+    { source = "target/gen/completions/fossroot.fish", dest = "/usr/share/fish/vendor_completions.d/fossroot.fish", mode = "644" },
+    { source = "target/gen/man/fossroot.1", dest = "/usr/share/man/man1/fossroot.1", mode = "644" },
+    { source = "target/gen/man/fossroot-status.1", dest = "/usr/share/man/man1/fossroot-status.1", mode = "644" },
+    { source = "target/gen/man/fossroot-install.1", dest = "/usr/share/man/man1/fossroot-install.1", mode = "644" },
+    { source = "target/gen/man/fossroot-remove.1", dest = "/usr/share/man/man1/fossroot-remove.1", mode = "644" },
+    { source = "target/gen/man/fossroot-export.1", dest = "/usr/share/man/man1/fossroot-export.1", mode = "644" },
+    { source = "target/gen/man/fossroot-completions.1", dest = "/usr/share/man/man1/fossroot-completions.1", mode = "644" },
+]
+
+[package.metadata.generate-rpm.requires]
+# update-ca-trust comes from ca-certificates on RHEL/Fedora.
+ca-certificates = "*"
+
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"
 

@@ -1,0 +1,51 @@
+# Flatpak scaffold — not yet published to Flathub, and read the caveat below
+# before investing in it.
+#
+# CAVEAT: Flatpak's sandbox cannot write the host's trust store, which is
+# Fossroot's whole job. Inside the sandbox, `install`/`remove` would only see
+# the runtime's private /etc, and running the host's update-ca-certificates
+# would require flatpak-spawn --host — at which point the sandbox is
+# decorative. A flatpak'd Fossroot is therefore only useful for the read-only
+# paths (status, export). AppImage/deb/rpm are the recommended Linux formats;
+# this manifest exists so the door is open if a sandbox-compatible install
+# path (e.g. p11-kit portal) ever materializes.
+#
+# Offline cargo sources: generate cargo-sources.json with flatpak-builder-tools
+#   python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+# then: flatpak-builder --user --install build packaging/flatpak/com.fossroot.Fossroot.yml
+
+app-id: com.fossroot.Fossroot
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: fossroot
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  # DISA bundle download.
+  - --share=network
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/fossroot/cargo
+
+modules:
+  - name: fossroot
+    buildsystem: simple
+    build-commands:
+      - cargo --offline build --release -p fossroot
+      - install -Dm755 target/release/fossroot /app/bin/fossroot
+      - install -Dm644 packaging/linux/com.fossroot.Fossroot.desktop -t /app/share/applications
+      - install -Dm644 packaging/linux/com.fossroot.Fossroot.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 assets/icon/fossroot.svg /app/share/icons/hicolor/scalable/apps/com.fossroot.Fossroot.svg
+      - install -Dm644 assets/icon/fossroot-256.png /app/share/icons/hicolor/256x256/apps/com.fossroot.Fossroot.png
+    sources:
+      - type: dir
+        path: ../..
+      # Uncomment once generated (see header):
+      # - cargo-sources.json

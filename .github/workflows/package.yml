@@ -1,0 +1,93 @@
+name: Package
+
+# Builds and smoke-tests the Linux distribution artifacts (AppImage, deb,
+# rpm) and checks the Nix flake. ubuntu-22.04 keeps the glibc floor low so
+# the AppImage runs on older distros.
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    paths:
+      - "packaging/**"
+      - "assets/**"
+      - "flake.nix"
+      - ".github/workflows/package.yml"
+      - "crates/**"
+      - "Cargo.*"
+  workflow_dispatch:
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-packages:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb,cargo-generate-rpm
+
+      - name: Validate desktop entry and AppStream metainfo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils appstream
+          desktop-file-validate packaging/linux/com.fossroot.Fossroot.desktop
+          appstreamcli validate --no-net packaging/linux/com.fossroot.Fossroot.metainfo.xml
+
+      - name: Build release binary
+        run: cargo build --release -p fossroot
+
+      - name: Generate completions and man pages
+        run: |
+          mkdir -p target/gen/completions target/gen/man
+          target/release/fossroot completions bash > target/gen/completions/fossroot.bash
+          target/release/fossroot completions zsh  > target/gen/completions/_fossroot
+          target/release/fossroot completions fish > target/gen/completions/fossroot.fish
+          target/release/fossroot man --out target/gen/man
+          ls -l target/gen/completions target/gen/man
+
+      - name: Build AppImage
+        run: bash packaging/appimage/build-appimage.sh
+
+      - name: Build deb
+        run: cargo deb -p fossroot --no-build --no-strip
+
+      - name: Build rpm
+        run: cargo generate-rpm -p crates/fossroot
+
+      - name: Smoke-test artifacts
+        run: |
+          set -x
+          # AppImage runs and reports the right version (extract mode: no FUSE).
+          ./dist/Fossroot-*-x86_64.AppImage --appimage-extract-and-run --version
+          # deb installs cleanly with dependencies and lands on PATH + man.
+          sudo apt-get install -y ./target/debian/fossroot_*.deb
+          fossroot --version
+          man -w fossroot
+          desktop-file-validate /usr/share/applications/com.fossroot.Fossroot.desktop
+          # rpm contents sanity (no rpm install on a Debian runner).
+          rpm -qlp target/generate-rpm/*.rpm | grep -E 'usr/bin/fossroot|usr/share/man/man1/fossroot.1'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fossroot-linux-packages
+          if-no-files-found: error
+          path: |
+            dist/Fossroot-*.AppImage
+            dist/Fossroot-*.AppImage.sha256
+            target/debian/*.deb
+            target/generate-rpm/*.rpm
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - run: nix flake check
+      - run: nix build .#fossroot --print-build-logs
+      - run: ./result/bin/fossroot --version
