@@ -28,9 +28,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deb,cargo-generate-rpm
+      # Prebuilt cargo-deb/generate-rpm binaries need a newer glibc than
+      # ubuntu-22.04 ships, so compile them; rust-cache keeps ~/.cargo/bin warm.
+      - name: Install packaging tools
+        run: cargo install cargo-deb cargo-generate-rpm --locked
 
       - name: Validate desktop entry and AppStream metainfo
         run: |
